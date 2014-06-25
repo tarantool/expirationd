@@ -30,7 +30,7 @@ local function finalize_table(table)
 end
 
 -- get fiber id function
-local function get_fid(fiber)
+local function get_fiber_id(fiber)
     local fid = 0
     if fiber ~= nil then
         fid = fiber:id()
@@ -44,7 +44,7 @@ local function get_field(tuple, field_no)
         return nil
     end
 
-    if #tuple <= field_no then
+    if #tuple < field_no then
         return nil
     end
 
@@ -52,7 +52,7 @@ local function get_field(tuple, field_no)
 end
 
 -- ========================================================================= --
--- Expriration daemon global variables
+-- Expiration daemon global variables
 -- ========================================================================= --
 
 -- main table
@@ -64,13 +64,15 @@ local expirationd = {
     task_list = {},
     -- constants
     constants = finalize_table({
-        -- default value of number of tuples will be checked by one iteration
-        default_tuples_per_iter = 1024,
-        -- default value of time required for full index scan (in seconds)
+        -- default value of number of tuples that
+        -- will be checked by one iteration
+        default_tuples_per_iteration = 1024,
+        -- default value of time required for full
+        -- index scan (in seconds)
         default_full_scan_time = 3600,
         -- maximal worker delay (seconds)
         max_delay = 1,
-        -- check worker intarval
+        -- check worker interval
         check_interval = 1,
     }),
 }
@@ -85,24 +87,24 @@ local expirationd = {
 -- ------------------------------------------------------------------------- --
 
 local function do_worker_iteration(task)
-    local scan_space = box.space[task.space_no]
+    local scan_space = box.space[task.space_id]
 
     -- full index scan loop
-    local checks = 0
+    local checked_tuples_count = 0
     for _, tuple in scan_space.index[0]:pairs(nil, {iterator = box.index.ALL}) do
-        checks = checks + 1
+        checked_tuples_count = checked_tuples_count + 1
 
         -- do main work
         if task.is_tuple_expired(task.args, tuple) then
-            task.tuples_expired = task.tuples_expired + 1
-            task.process_expired_tuple(task.space_no, task.args, tuple)
+            task.expired_tuples_count = task.expired_tuples_count + 1
+            task.process_expired_tuple(task.space_id, task.args, tuple)
         end
 
         -- find out if the worker can go to sleep
-        if checks >= task.tuples_per_iter then
-            checks = 0
+        if checked_tuples_count >= task.tuples_per_iteration then
+            checked_tuples_count = 0
             if scan_space:len() > 0 then
-                local delay = (task.tuples_per_iter * task.full_scan_time) / scan_space:len()
+                local delay = (task.tuples_per_iteration * task.full_scan_time) / scan_space:len()
 
                 if delay > expirationd.constants.max_delay then
                     delay = expirationd.constants.max_delay
@@ -135,7 +137,7 @@ local function guardian_loop(task)
     fiber.name(str:format(task.name))
 
     while true do
-        if get_fid(task.worker_fiber) == 0 then
+        if get_fiber_id(task.worker_fiber) == 0 then
             -- create worker fiber
             task.worker_fiber = fiber.create(worker_loop)
             task.worker_fiber:resume(task)
@@ -159,13 +161,13 @@ local function create_task(name)
     task.start_time = os.time()
     task.guardian_fiber = nil
     task.worker_fiber = nil
-    task.space_no = nil
-    task.tuples_expired = 0
+    task.space_id = nil
+    task.expired_tuples_count = 0
     task.restarts = 0
     task.is_tuple_expired = nil
     task.process_expired_tuple = nil
     task.args = nil
-    task.tuples_per_iter = expirationd.constants.default_tuples_per_iter
+    task.tuples_per_iteration = expirationd.constants.default_tuples_per_iteration
     task.full_scan_time = expirationd.constants.default_full_scan_time
     return task
 end
@@ -193,12 +195,12 @@ end
 
 -- kill task
 local function kill_task(task)
-    if get_fid(task.guardian_fiber) ~= 0 then
+    if get_fiber_id(task.guardian_fiber) ~= 0 then
         -- kill guardian fiber
         fiber.cancel(task.guardian_fiber)
         task.guardian_fiber = nil
     end
-    if get_fid(task.worker_fiber) ~= 0 then
+    if get_fiber_id(task.worker_fiber) ~= 0 then
         -- kill worker fiber
         fiber.cancel(task.worker_fiber)
         task.worker_fiber = nil
@@ -207,30 +209,30 @@ end
 
 
 -- ========================================================================= --
--- Expriration daemon management functions
+-- Expiration daemon management functions
 -- ========================================================================= --
 
 --
 -- Run a named task
 -- params:
---    name             -- task name
---    space_no         -- space to look in for expired tuples
---    is_tuple_expired -- a function, must accept tuple and return
---                        true/false (is tuple expired or not),
---                        receives (args, tuple) as arguments
+--    name                  -- task name
+--    space_id              -- space to look in for expired tuples
+--    is_tuple_expired      -- a function, must accept tuple and return
+--                             true/false (is tuple expired or not),
+--                             receives (args, tuple) as arguments
 --    process_expired_tuple -- applied to expired tuples, receives
---                        (space_no, args, tuple) as arguments
---    args             -- passed to is_tuple_expired and process_expired_tuple()
---                        as additional context
---    tuples_per_iter  -- number of tuples will be checked by one itaration
---    full_scan_time   -- time required for full index scan (in seconds)
+--                             (space_id, args, tuple) as arguments
+--    args                  -- passed to is_tuple_expired and process_expired_tuple()
+--                             as additional context
+--    tuples_per_iteration  -- number of tuples will be checked by one iteration
+--    full_scan_time        -- time required for full index scan (in seconds)
 --
 function expirationd.run_task(name,
-                              space_no,
+                              space_id,
                               is_tuple_expired,
                               process_expired_tuple,
                               args,
-                              tuples_per_iter,
+                              tuples_per_iteration,
                               full_scan_time)
     if name == nil then
         error("task name is nil")
@@ -247,10 +249,10 @@ function expirationd.run_task(name,
     -- required params
 
     -- check expiration space number (required)
-    if space_no == nil then
-        error("space_no is nil")
+    if space_id == nil then
+        error("space_id is nil")
     end
-    task.space_no = space_no
+    task.space_id = space_id
 
     if is_tuple_expired == nil then
         error("is_tuple_expired is nil, please provide a check function")
@@ -273,11 +275,11 @@ function expirationd.run_task(name,
     task.args = args
 
     -- check tuples per iteration (not required)
-    if tuples_per_iter ~= nil then
-        if tuples_per_iter <= 0 then
+    if tuples_per_iteration ~= nil then
+        if tuples_per_iteration <= 0 then
             error("invalid tuples per iteration parameter")
         end
-        task.tuples_per_iter = tuples_per_iter
+        task.tuples_per_iteration = tuples_per_iteration
     end
 
     -- check full scan time
@@ -301,7 +303,7 @@ end
 --
 -- Kill named task
 -- params:
---    name -- is taks's name
+--    name -- is task's name
 --
 function expirationd.kill_task(name)
     kill_task(get_task(name))
@@ -320,7 +322,7 @@ function expirationd.show_task_list(print_head)
     end
     for i, task in pairs(expirationd.task_list) do
             log.info("%q\t%s\t%s\t%f",
-                     task.name, task.space_no, tuples_expired,
+                     task.name, task.space_id, expired_tuples_count,
                      math.floor(os.time() - task.start_time))
     end
 end
@@ -332,11 +334,11 @@ end
 --
 function expirationd.task_details(name)
     local task = get_task(name)
-    log.info("name: %s", task.name)
-    log.info("start time: %f", math.floor(task.start_time))
-    log.info("working time: %f", math.floor(os.time() - task.start_time))
-    log.info("space: %s", task.space_no)
-    log.info("is_tuple_expired handler: %s", task.is_tuple_expired)
+    log.info("name: %s",                          task.name)
+    log.info("start time: %f",                    math.floor(task.start_time))
+    log.info("working time: %f",                  math.floor(os.time() - task.start_time))
+    log.info("space: %s",                         task.space_id)
+    log.info("is_tuple_expired handler: %s",      task.is_tuple_expired)
     log.info("process_expired_tuple handler: %s", task.process_expired_tuple)
 
     if task.args ~= nil then
@@ -347,20 +349,20 @@ function expirationd.task_details(name)
     else
         log.info("args: nil")
     end
-    log.info("tuples per iteration: %d", task.tuples_per_iter)
+    log.info("tuples per iteration: %d", task.tuples_per_iteration)
     log.info("full index scan time: %f", task.full_scan_time)
-    log.info("tuples expired: %d", task.tuples_expired)
-    log.info("restarts: %d", task.restarts)
-    log.info("guardian fid: %d", get_fid(task.guardian_fiber))
-    log.info("worker fid: %d", get_fid(task.worker_fiber))
+    log.info("expired tuples count: %d", task.expired_tuples_count)
+    log.info("restarts: %d",             task.restarts)
+    log.info("guardian fid: %d",         get_fiber_id(task.guardian_fiber))
+    log.info("worker fid: %d",           get_fiber_id(task.worker_fiber))
 end
 
 
 -- ========================================================================= --
--- Expriratiuons handlers examples
+-- Expiratiuons handlers examples
 -- ========================================================================= --
 
--- check tuple's expiration by field witch containing
+-- check tuple's expiration by timestamp (stored in last field)
 local function check_tuple_expire_by_timestamp(args, tuple)
     local tuple_expire_time = get_field(tuple, args.field_no)
     if type(tuple_expire_time) ~= 'number' then
@@ -371,108 +373,115 @@ local function check_tuple_expire_by_timestamp(args, tuple)
     return current_time >= tuple_expire_time
 end
 
--- put expired tuple to cemetery
-local function put_tuple_to_cemetery(space_no, args, tuple)
+-- put expired tuple in archive
+local function put_tuple_to_archive(space_id, args, tuple)
     -- delete expired tuple
-    box.space[space_no]:delete{tuple[0]}
+    box.space[space_id]:delete{tuple[0]}
     local email = get_field(tuple, 1)
-    if args.cemetery_space_no ~= nil and email ~= nil then
-        box.space[args.cemetery_space_no]:replace{email, os.time()}
+    if args.archive_space_id ~= nil and email ~= nil then
+        box.space[args.archive_space_id]:replace{email, os.time()}
     end
 end
 
 -- ========================================================================= --
--- Expriration module test functions
+-- Expiration module test functions
 -- ========================================================================= --
 -- Warning: for these test functions to work, you need
 -- a space with a numeric primary key defined on field[0]
 
 -- generate email string
 local function get_email(uid)
-    local email = "test_" .. uid .. "@sex.com"
+    local email = "test_" .. uid .. "@tarantool.org"
     return email
 end
 -- insert entry to space
-local function add_entry(space_no, uid, email, expiration_time)
-    box.space[space_no]:replace{uid, email, expiration_time}
+local function add_entry(space_id, uid, email, expiration_time)
+    box.space[space_id]:replace{uid, email, expiration_time}
 end
 
 -- put test tuples
-function expirationd.put_test_tuples(space_no, total)
+function expirationd.put_test_tuples(space_id, total)
     if not expirationd._debug then
-        error("expiration daemon module's debug disabled")
+        error("debug is disabled")
     end
 
     local time = math.floor(os.time())
     for i = 0, total do
-        add_entry(space_no, i, get_email(i), time + i)
+        add_entry(space_id, i, get_email(i), time + i)
     end
 
     -- tuple w/o expiration date
     uid = total + 1
-    add_entry(space_no, uid, get_email(uid), "")
+    add_entry(space_id, uid, get_email(uid), "")
 
     -- tuple w/ invalid expiration date
     uid = total + 2
-    add_entry(space_no, uid, get_email(uid), "some string in exp field")
+    add_entry(space_id, uid, get_email(uid), "some string in exp field")
 end
 
 -- print test tuples
-function expirationd.print_test_tuples(space_no)
+function expirationd.print_test_tuples(space_id)
     if not expirationd._debug then
-        error("expiration daemon module's debug disabled")
+        error("debug is disabled")
     end
 
-    for state, tuple in box.space[space_no].index[0]:pairs(nil, {iterator = box.index.ALL}) do
+    for state, tuple in box.space[space_id].index[0]:pairs(nil, {iterator = box.index.ALL}) do
         print(tuple)
     end
 end
 
+local function prefix_space_id(space_id)
+   if type(space_id) == 'number' then
+      return '#'..space_id
+   end
+   return string.format('%q', space_id)
+end
+
 -- do test
-function expirationd.do_test(space_no, cemetery_space_no)
+function expirationd.do_test(space_id, archive_space_id)
     if not expirationd._debug then
-        error("expiration daemon module's debug disabled")
+        error("debug is disabled")
     end
 
     -- put test tuples
     print("-------------- put ------------")
-    print("put to space #"..space_no)
-    expirationd.put_test_tuples(space_no, 10)
+    print("put to space " .. prefix_space_id(space_id))
+    expirationd.put_test_tuples(space_id, 10)
 
     -- print before
     print("\n------------- print -----------")
-    print("before print space #"..space_no, "\n")
-    expirationd.print_test_tuples(space_no)
-    print("\nbefore print cemetery space #"..cemetery_space_no, "\n")
-    expirationd.print_test_tuples(cemetery_space_no)
+    print("before print space " .. prefix_space_id(space_id), "\n")
+    expirationd.print_test_tuples(space_id)
+    print("\nbefore print archive space " .. prefix_space_id(archive_space_id), "\n")
+    expirationd.print_test_tuples(archive_space_id)
 
     print("-------------- run ------------")
     expirationd.run_task("test",
-                   space_no,
+                   space_id,
                    check_tuple_expire_by_timestamp,
-                   put_tuple_to_cemetery,
+                   put_tuple_to_archive,
                    {
                        field_no = 2,
-                       cemetery_space_no = cemetery_space_no
+                       archive_space_id = archive_space_id
                    })
 
     -- wait expiration
     print("------------- wait ------------")
-    print("before time = ", os.time())
+    print("before time = ", os.date('%X', os.time()))
     fiber.sleep(5)
-    print("after time = ", os.time())
+    print("after time = ", os.date('%X', os.time()))
 
     -- print after
     print("\n------------- print -----------")
-    print("After print space #"..space_no, "\n")
-    expirationd.print_test_tuples(space_no)
-    print("\nafter print cemetery space #"..cemetery_space_no, "\n")
-    expirationd.print_test_tuples(cemetery_space_no)
-    
+    print("After print space " .. prefix_space_id(space_id), "\n")
+    expirationd.print_test_tuples(space_id)
+    print("\nafter print archive space " .. prefix_space_id(archive_space_id), "\n")
+    expirationd.print_test_tuples(archive_space_id)
+
     expirationd.show_task_list(true)
     log.info('')
     expirationd.task_details("test")
-    
+
     return true
 end
 

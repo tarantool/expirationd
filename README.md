@@ -10,11 +10,10 @@ does something smarter, like put a smaller representation of the tuple
 instaed.
 
 ### Example
-''' lua
+``` lua
 box.cfg{}
 space = box.space.old
 job_name = 'clean_all'
-space_no
 expirationd = require('expirationd')
 function is_expired()
   return true
@@ -23,7 +22,7 @@ function delete_tuple()
   space:delete{tuple[1]}
 end
 expirationd.run_task(job_name, space.id, is_expired, delete_tuple, nil, 50, 3600)
-'''
+```
 ## API
 
 ### `expirationd.run_task (name, space_no, is_tuple_expired, process_expired_tuple, args, tuples_per_item, full_scan_time)`

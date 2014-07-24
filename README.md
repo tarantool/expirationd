@@ -10,7 +10,7 @@ does something smarter, like put a smaller representation of the tuple
 instaed.
 
 ### Example
-'''lua
+''' lua
 box.cfg{}
 space = box.space.old
 job_name = 'clean_all'

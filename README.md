@@ -1,5 +1,29 @@
-# Tarantool expiration daemon
+# expirationd -  data expiration with custom quirks.
 
+This package can turn Tarantool into a persistent memcache replacement, 
+but is powerful enough so that  your own expiration strategy can be defined.
+
+You define what two functions: one takes a tuple as an input and returns
+true in case it's expirted and false otherwise. The other takes the 
+tuple and performs the expiry itself: either deletes it (memcache), or
+does something smarter, like put a smaller representation of the tuple
+instaed.
+
+### Example
+'''lua
+box.cfg{}
+space = box.space.old
+job_name = 'clean_all'
+space_no
+expirationd = require('expirationd')
+function is_expired()
+  return true
+end
+function delete_tuple()
+  space:delete{tuple[1]}
+end
+expirationd.run_task(job_name, space.id, is_expired, delete_tuple, nil, 50, 3600)
+'''
 ## API
 
 ### `expirationd.run_task (name, space_no, is_tuple_expired, process_expired_tuple, args, tuples_per_item, full_scan_time)`

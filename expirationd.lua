@@ -117,7 +117,6 @@ end
 
 local function worker_loop(task)
     -- detach worker from the guardian and attach it to sched fiber
-    fiber.detach()
     fiber.name(task.name)
 
     while true do
@@ -132,15 +131,12 @@ end
 
 local function guardian_loop(task)
     -- detach the guardian from the creator and attach it to sched
-    local str = "guardian of %q"
-    fiber.detach()
-    fiber.name(str:format(task.name))
+    fiber.name(string.format("guardian of %q", task.name))
 
     while true do
         if get_fiber_id(task.worker_fiber) == 0 then
             -- create worker fiber
-            task.worker_fiber = fiber.create(worker_loop)
-            task.worker_fiber:resume(task)
+            task.worker_fiber = fiber.create(worker_loop, task)
 
             log.info("expiration: task %q restarted", task.name)
             task.restarts = task.restarts + 1
@@ -189,8 +185,7 @@ end
 -- run task
 local function run_task(task)
     -- start guardian task
-    task.guardian_fiber = fiber.create(guardian_loop)
-    fiber.resume(task.guardian_fiber, task)
+    task.guardian_fiber = fiber.create(guardian_loop, task)
 end
 
 -- kill task
@@ -376,8 +371,8 @@ end
 -- put expired tuple in archive
 local function put_tuple_to_archive(space_id, args, tuple)
     -- delete expired tuple
-    box.space[space_id]:delete{tuple[0]}
-    local email = get_field(tuple, 1)
+    box.space[space_id]:delete{tuple[1]}
+    local email = get_field(tuple, 2)
     if args.archive_space_id ~= nil and email ~= nil then
         box.space[args.archive_space_id]:replace{email, os.time()}
     end

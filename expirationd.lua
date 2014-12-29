@@ -32,23 +32,10 @@ end
 -- get fiber id function
 local function get_fiber_id(fiber)
     local fid = 0
-    if fiber ~= nil then
+    if fiber ~= nil and fiber:status() ~= "dead" then
         fid = fiber:id()
     end
     return fid
-end
-
--- get field
-local function get_field(tuple, field_no)
-    if tuple == nil then
-        return nil
-    end
-
-    if #tuple < field_no then
-        return nil
-    end
-
-    return tuple[field_no]
 end
 
 -- ========================================================================= --
@@ -58,8 +45,6 @@ end
 -- main table
 
 local expirationd = {
-    -- enable/disable debug functions
-    _debug = false,
     -- task list
     task_list = {},
     -- constants
@@ -76,7 +61,6 @@ local expirationd = {
         check_interval = 1,
     }),
 }
-
 
 -- ========================================================================= --
 -- Task local functions
@@ -117,7 +101,7 @@ end
 
 local function worker_loop(task)
     -- detach worker from the guardian and attach it to sched fiber
-    fiber.name(task.name)
+    fiber.self():name(task.name)
 
     while true do
         if box.cfg.replication_source == nil then
@@ -131,7 +115,7 @@ end
 
 local function guardian_loop(task)
     -- detach the guardian from the creator and attach it to sched
-    fiber.name(string.format("guardian of %q", task.name))
+    fiber.self():name(string.format("guardian of %q", task.name))
 
     while true do
         if get_fiber_id(task.worker_fiber) == 0 then
@@ -278,7 +262,7 @@ function expirationd.run_task(name,
     end
 
     -- check full scan time
-    if full_scan_time ~= nil then
+    if fdeadull_scan_time ~= nil then
         if full_scan_time <= 0 then
             error("invalid full scan time")
         end
@@ -316,9 +300,12 @@ function expirationd.show_task_list(print_head)
         log.info('-----------------------------------')
     end
     for i, task in pairs(expirationd.task_list) do
-            log.info("%q\t%s\t%s\t%f",
-                     task.name, task.space_id, expired_tuples_count,
-                     math.floor(os.time() - task.start_time))
+         log.info("%q\t%s\t%s\t%f",
+                  task.name,
+                  task.space_id,
+                  task.expired_tuples_count,
+                  math.floor(os.time() - task.start_time)
+         )
     end
 end
 
@@ -350,134 +337,6 @@ function expirationd.task_details(name)
     log.info("restarts: %d",             task.restarts)
     log.info("guardian fid: %d",         get_fiber_id(task.guardian_fiber))
     log.info("worker fid: %d",           get_fiber_id(task.worker_fiber))
-end
-
-
--- ========================================================================= --
--- Expiratiuons handlers examples
--- ========================================================================= --
-
--- check tuple's expiration by timestamp (stored in last field)
-local function check_tuple_expire_by_timestamp(args, tuple)
-    local tuple_expire_time = get_field(tuple, args.field_no)
-    if type(tuple_expire_time) ~= 'number' then
-        return true
-    end
-
-    local current_time = os.time()
-    return current_time >= tuple_expire_time
-end
-
--- put expired tuple in archive
-local function put_tuple_to_archive(space_id, args, tuple)
-    -- delete expired tuple
-    box.space[space_id]:delete{tuple[1]}
-    local email = get_field(tuple, 2)
-    if args.archive_space_id ~= nil and email ~= nil then
-        box.space[args.archive_space_id]:replace{email, os.time()}
-    end
-end
-
--- ========================================================================= --
--- Expiration module test functions
--- ========================================================================= --
--- Warning: for these test functions to work, you need
--- a space with a numeric primary key defined on field[0]
-
--- generate email string
-local function get_email(uid)
-    local email = "test_" .. uid .. "@tarantool.org"
-    return email
-end
--- insert entry to space
-local function add_entry(space_id, uid, email, expiration_time)
-    box.space[space_id]:replace{uid, email, expiration_time}
-end
-
--- put test tuples
-function expirationd.put_test_tuples(space_id, total)
-    if not expirationd._debug then
-        error("debug is disabled")
-    end
-
-    local time = math.floor(os.time())
-    for i = 0, total do
-        add_entry(space_id, i, get_email(i), time + i)
-    end
-
-    -- tuple w/o expiration date
-    uid = total + 1
-    add_entry(space_id, uid, get_email(uid), "")
-
-    -- tuple w/ invalid expiration date
-    uid = total + 2
-    add_entry(space_id, uid, get_email(uid), "some string in exp field")
-end
-
--- print test tuples
-function expirationd.print_test_tuples(space_id)
-    if not expirationd._debug then
-        error("debug is disabled")
-    end
-
-    for state, tuple in box.space[space_id].index[0]:pairs(nil, {iterator = box.index.ALL}) do
-        print(tuple)
-    end
-end
-
-local function prefix_space_id(space_id)
-   if type(space_id) == 'number' then
-      return '#'..space_id
-   end
-   return string.format('%q', space_id)
-end
-
--- do test
-function expirationd.do_test(space_id, archive_space_id)
-    if not expirationd._debug then
-        error("debug is disabled")
-    end
-
-    -- put test tuples
-    print("-------------- put ------------")
-    print("put to space " .. prefix_space_id(space_id))
-    expirationd.put_test_tuples(space_id, 10)
-
-    -- print before
-    print("\n------------- print -----------")
-    print("before print space " .. prefix_space_id(space_id), "\n")
-    expirationd.print_test_tuples(space_id)
-    print("\nbefore print archive space " .. prefix_space_id(archive_space_id), "\n")
-    expirationd.print_test_tuples(archive_space_id)
-
-    print("-------------- run ------------")
-    expirationd.run_task("test",
-                   space_id,
-                   check_tuple_expire_by_timestamp,
-                   put_tuple_to_archive,
-                   {
-                       field_no = 2,
-                       archive_space_id = archive_space_id
-                   })
-
-    -- wait expiration
-    print("------------- wait ------------")
-    print("before time = ", os.date('%X', os.time()))
-    fiber.sleep(5)
-    print("after time = ", os.date('%X', os.time()))
-
-    -- print after
-    print("\n------------- print -----------")
-    print("After print space " .. prefix_space_id(space_id), "\n")
-    expirationd.print_test_tuples(space_id)
-    print("\nafter print archive space " .. prefix_space_id(archive_space_id), "\n")
-    expirationd.print_test_tuples(archive_space_id)
-
-    expirationd.show_task_list(true)
-    log.info('')
-    expirationd.task_details("test")
-
-    return true
 end
 
 return expirationd

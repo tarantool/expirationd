@@ -262,7 +262,7 @@ function expirationd.run_task(name,
     end
 
     -- check full scan time
-    if fdeadull_scan_time ~= nil then
+    if full_scan_time ~= nil then
         if full_scan_time <= 0 then
             error("invalid full scan time")
         end

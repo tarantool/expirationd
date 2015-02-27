@@ -2,6 +2,8 @@
 
 local expirationd = require('expirationd')
 local log = require('log')
+local tap = require('tap')
+local test = tap.test("expirationd")
 
 -- ========================================================================= --
 -- local support functions
@@ -98,8 +100,48 @@ local function prefix_space_id(space_id)
    return string.format('%q', space_id)
 end
 
--- do test
-local function do_test(space_id, archive_space_id)
+-- Configure box, create spaces and indexes
+local function init_box()
+   box.cfg{}
+   if box.space.origin == nil then
+      a = box.schema.create_space('origin')
+      a:create_index('first', {type = 'TREE', parts = {1, 'NUM'}})
+   else
+      box.space.origin:truncate()
+   end
+
+   if box.space.cemetery == nil then
+      b = box.schema.create_space('cemetery')
+      b:create_index('first', {type = 'TREE', parts = {1, 'STR'}})
+   else
+      box.space.cemetery:truncate()
+   end
+   
+   if box.space.exp_test == nil then
+      b = box.schema.create_space('exp_test')
+      b:create_index('first', {type = 'TREE', parts = {1, 'NUM'}})
+   else
+      box.space.exp_test:truncate()
+   end
+
+end
+
+local space_id = 'origin'
+local archive_space_id = 'cemetery'
+ 
+init_box()
+
+-- ========================================================================= --
+-- TAP TESTS: 
+-- 1. simple archive test. 
+-- 2. errors test, 
+-- 3. not expire test, 
+-- 4. kill zombie test
+-- ========================================================================= --
+test:plan(4)
+
+test:test('simple expires test',  function(test)
+    test:plan(4)
     -- put test tuples
     print("-------------- put ------------")
     print("put to space " .. prefix_space_id(space_id))
@@ -113,20 +155,24 @@ local function do_test(space_id, archive_space_id)
     print_test_tuples(archive_space_id)
 
     print("-------------- run ------------")
-    expirationd.run_task("test",
-                   space_id,
-                   check_tuple_expire_by_timestamp,
-                   put_tuple_to_archive,
-                   {
-                       field_no = 2,
-                       archive_space_id = archive_space_id
-                   })
+    expirationd.run_task(
+        "test",
+        space_id,
+        check_tuple_expire_by_timestamp,
+        put_tuple_to_archive,
+        {
+            field_no = 2,
+            archive_space_id = archive_space_id
+        }
+    )
 
     -- wait expiration
+    start_time = os.time()
     print("------------- wait ------------")
-    print("before time = ", os.date('%X', os.time()))
+    print("before time = ", os.date('%X', start_time))
     require('fiber').sleep(5)
-    print("after time = ", os.date('%X', os.time()))
+    end_time = os.time()
+    print("after time = ", os.date('%X', end_time))
 
     -- print after
     print("\n------------- print -----------")
@@ -138,47 +184,141 @@ local function do_test(space_id, archive_space_id)
     expirationd.show_task_list(true)
     log.info('')
     expirationd.task_details("test")
-    return true
-end
+ 
+    local task = expirationd.task_list["test"]
+    log.info(task.expired_tuples_count)
+    test:is(task.start_time, start_time)
+    test:is(task.name, "test")
+    test:is(task.restarts, 1)
+    test:ok(task.expired_tuples_count==13, 'Test task executed and moved to archive')
+end)
 
--- do test
-local function do_test_error(space_id, archive_space_id)
-    print("-------------- erroneous run ------------")
+test:test("execution error test", function (test)
+    test:plan(2)
+    expirationd.run_task(
+        "test",
+        space_id,
+        check_tuple_expire_by_timestamp_error,
+        put_tuple_to_archive,
+        {
+            field_no = 2,
+            archive_space_id = archive_space_id
+        }
+    )
+    test:is(expirationd.task_list["test"].restarts, 1)
+
     expirationd.run_task("test",
-                   space_id,
-                   check_tuple_expire_by_timestamp_error,
-                   put_tuple_to_archive,
-                   {
-                       field_no = 2,
-                       archive_space_id = archive_space_id
-                   })
-    expirationd.run_task("test",
-                   space_id,
-                   check_tuple_expire_by_timestamp,
-                   put_tuple_to_archive_error,
-                   {
-                       field_no = 2,
-                       archive_space_id = archive_space_id
-                   })
-    return true
-end
+         space_id,
+         check_tuple_expire_by_timestamp,
+         put_tuple_to_archive_error,
+         {
+             field_no = 2,
+             archive_space_id = archive_space_id
+         }
+    )
+    local task = expirationd.task_list["test"]
+    test:ok(task.restarts==1, 'Error task executed')
+end)
 
-box.cfg{}
+test:test("not expired task",  function(test)
+    test:plan(2)
+    tuples_count = 10
+    local time = math.floor(os.time())
+    for i = 0, tuples_count do
+        add_entry(space_id, i, get_email(i), time + (i + 1)* 5)
+    end
+    
+    expirationd.run_task(
+        "test",
+         space_id,
+         check_tuple_expire_by_timestamp,
+         put_tuple_to_archive,
+         {
+             field_no = 2,
+             archive_space_id = archive_space_id
+         }
+    )
+    task = expirationd.task_list["test"]
+    -- after run tuples is not expired
+    test:is(task.expired_tuples_count, 1)
+    -- wait 5 seconds and check: all tuples must be expired
+    require('fiber').sleep(5)
+    test:ok(task.expired_tuples_count==11)
+end)
 
-if box.space.origin == nil then
-   a = box.schema.create_space('origin')
-   a:create_index('first', {type = 'TREE', parts = {1, 'NUM'}})
-else
-   box.space.origin:truncate()
-end
+test:test("zombie task kill", function(test)
+    test:plan(4)
+    tuples_count = 10
+    local time = math.floor(os.time())
+    for i = 0, tuples_count do
+        add_entry(space_id, i, get_email(i), time + i * 5)
+    end
+    -- first run
+    expirationd.run_task(
+        "test",
+         space_id,
+         check_tuple_expire_by_timestamp,
+         put_tuple_to_archive,
+         {
+             field_no = 2,
+             archive_space_id = archive_space_id
+         }
+    )
+    fiber_obj = expirationd.task_list["test"].guardian_fiber
+    test:is(fiber_obj:status(), 'suspended')
+    -- run again and check - it must kill first task
+    expirationd.run_task(
+        "test",
+         space_id,
+         check_tuple_expire_by_timestamp,
+         put_tuple_to_archive,
+         {
+             field_no = 2,
+             archive_space_id = archive_space_id
+         }
+    )
+    local task = expirationd.task_list["test"]
+    test:is(task.restarts, 1)
+    -- check is first fiber killed   
+    test:is(task.guardian_fiber:status(), "suspended")
+    test:ok(fiber_obj:status() == 'dead', "Zobie task was killed and restarted")
+end)
 
-if box.space.cemetery == nil then
-   b = box.schema.create_space('cemetery')
-   b:create_index('first', {type = 'TREE', parts = {1, 'STR'}})
-else
-   box.space.cemetery:truncate()
-end
+test:test("multiple expires test", function(test)
+    test:plan(2)
+    tuples_count = 10
+    local time = math.floor(os.time())
+    space_name = 'exp_test'
+    expire_delta = 2
+    
+    for i = 1, tuples_count do
+        box.space[space_name]:delete{i}
+        box.space[space_name]:insert{i, get_email(i), time + expire_delta}
+    end   
+    
+    expirationd.run_task(
+        "test",
+         space_name,
+         check_tuple_expire_by_timestamp,
+         put_tuple_to_archive,
+         {
+             field_no = 2,
+             archive_space_id = archive_space_id
+         },
+         5,
+         1
+    )
+    fiber = require('fiber')    
+    -- test first expire part
+    fiber.sleep(1 + expire_delta)
+    log.info(task.expired_tuples_count)
+    cnt = expirationd.task_list["test"].expired_tuples_count
+    test:ok(cnt < tuples_count and cnt > 0, 'First part expires done')
+    
+    -- test second expire part
+    fiber.sleep(1 + expire_delta)
+    log.info(task.expired_tuples_count)
+    test:ok(expirationd.task_list["test"].expired_tuples_count==tuples_count, 'Multiple expires done')  
+end)
 
-do_test('origin', 'cemetery')
-do_test_error('origin', 'cemetery')
 os.exit()

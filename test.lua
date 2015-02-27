@@ -311,8 +311,9 @@ test:test("multiple expires test", function(test)
     fiber = require('fiber')    
     -- test first expire part
     fiber.sleep(1 + expire_delta)
+    local task = expirationd.task_list["test"]
     log.info(task.expired_tuples_count)
-    cnt = expirationd.task_list["test"].expired_tuples_count
+    cnt = task.expired_tuples_count
     test:ok(cnt < tuples_count and cnt > 0, 'First part expires done')
     
     -- test second expire part

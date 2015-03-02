@@ -15,11 +15,11 @@ box.cfg{}
 space = box.space.old
 job_name = 'clean_all'
 expirationd = require('expirationd')
-function is_expired(tuple)
+function is_expired(args, tuple)
   return true
 end
-function delete_tuple(tuple)
-  space:delete{tuple[1]}
+function delete_tuple(space_id, args, tuple)
+  box.space[space_id]:delete{tuple[1]}
 end
 expirationd.run_task(job_name, space.id, is_expired, delete_tuple, nil, 50, 3600)
 ```

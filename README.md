@@ -25,11 +25,11 @@ expirationd.run_task(job_name, space.id, is_expired, delete_tuple, nil, 50, 3600
 ```
 ## API
 
-### `expirationd.run_task (name, space_no, is_tuple_expired, process_expired_tuple, args, tuples_per_item, full_scan_time)`
+### `expirationd.run_task (name, space_id, is_tuple_expired, process_expired_tuple, args, tuples_per_item, full_scan_time)`
 * `name` - task name
-* `space_no` - space to look in for expired tuples
+* `space_id` - space to look in for expired tuples
 * `is_tuple_expired` - a function, must accept tuple and return true/false (is tuple expired or not), receives `(args, tuple)` as arguments
-* `process_expired_tuple` - applied to expired tuples, receives `(space_no, args, tuple)` as arguments
+* `process_expired_tuple` - applied to expired tuples, receives `(space_id, args, tuple)` as arguments
 * `args` - passed to `is_tuple_expired()` and `process_expired_tuple()` as additional context
 * `tuples_per_iter` - number of tuples will be checked by one iteration
 * `full_scan_time` - time required for full index scan (in seconds)

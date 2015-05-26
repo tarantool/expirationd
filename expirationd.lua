@@ -70,31 +70,36 @@ local expirationd = {
 -- Task fibers
 -- ------------------------------------------------------------------------- --
 
-local function do_worker_iteration(task)
-    local scan_space = box.space[task.space_id]
-
-    -- full index scan loop
-    local checked_tuples_count = 0
-    for _, tuple in scan_space.index[0]:pairs(nil, {iterator = box.index.ALL}) do
-        checked_tuples_count = checked_tuples_count + 1
-
+local function process_batch(scan_space, task, tuples)
+    for _, tuple in pairs(tuples) do
         -- do main work
         if task.is_tuple_expired(task.args, tuple) then
             task.expired_tuples_count = task.expired_tuples_count + 1
             task.process_expired_tuple(task.space_id, task.args, tuple)
         end
+    end
+end
 
-        -- find out if the worker can go to sleep
-        if checked_tuples_count >= task.tuples_per_iteration then
-            checked_tuples_count = 0
-            if scan_space:len() > 0 then
-                local delay = (task.tuples_per_iteration * task.full_scan_time) / scan_space:len()
+local function do_worker_iteration(task)
+    local scan_space = box.space[task.space_id]
+    local params = {iterator = 'GT', limit = task.tuples_per_iteration}
+    local last_id
 
-                if delay > expirationd.constants.max_delay then
-                    delay = expirationd.constants.max_delay
-                end
-                fiber.sleep(delay)
+    -- full index scan loop
+    local tuples = scan_space.index[0]:select({}, params)
+    while #tuples > 0 do
+        last_id = tuples[#tuples][1]
+        process_batch(scan_space, task, tuples)
+        tuples = scan_space.index[0]:select({last_id}, params)
+
+        -- delay if space is not empty
+        if scan_space:len() > 0 then
+            local delay = (task.tuples_per_iteration * task.full_scan_time) / scan_space:len()
+
+            if delay > expirationd.constants.max_delay then
+                delay = expirationd.constants.max_delay
             end
+            fiber.sleep(delay)
         end
     end
 end

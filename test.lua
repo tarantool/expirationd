@@ -161,7 +161,7 @@ test:test('simple expires test',  function(test)
         check_tuple_expire_by_timestamp,
         put_tuple_to_archive,
         {
-            field_no = 2,
+            field_no = 3,
             archive_space_id = archive_space_id
         }
     )
@@ -190,7 +190,8 @@ test:test('simple expires test',  function(test)
     test:is(task.start_time, start_time)
     test:is(task.name, "test")
     test:is(task.restarts, 1)
-    test:ok(task.expired_tuples_count==13, 'Test task executed and moved to archive')
+    log.info(task.expired_tuples_count)
+    test:ok(task.expired_tuples_count==7, 'Test task executed and moved to archive')
 end)
 
 test:test("execution error test", function (test)
@@ -201,7 +202,7 @@ test:test("execution error test", function (test)
         check_tuple_expire_by_timestamp_error,
         put_tuple_to_archive,
         {
-            field_no = 2,
+            field_no = 3,
             archive_space_id = archive_space_id
         }
     )
@@ -212,7 +213,7 @@ test:test("execution error test", function (test)
          check_tuple_expire_by_timestamp,
          put_tuple_to_archive_error,
          {
-             field_no = 2,
+             field_no = 3,
              archive_space_id = archive_space_id
          }
     )
@@ -222,10 +223,11 @@ end)
 
 test:test("not expired task",  function(test)
     test:plan(2)
-    tuples_count = 10
-    local time = math.floor(os.time())
-    for i = 0, tuples_count do
-        add_entry(space_id, i, get_email(i), time + (i + 1)* 5)
+    box.space[space_id]:truncate()
+    tuples_count = 5
+    local time = os.time()
+    for i = 1, tuples_count do
+        add_entry(space_id, i, get_email(i), time + 2)
     end
     
     expirationd.run_task(
@@ -234,16 +236,16 @@ test:test("not expired task",  function(test)
          check_tuple_expire_by_timestamp,
          put_tuple_to_archive,
          {
-             field_no = 2,
+             field_no = 3,
              archive_space_id = archive_space_id
          }
     )
     task = expirationd.task_list["test"]
     -- after run tuples is not expired
-    test:is(task.expired_tuples_count, 1)
-    -- wait 5 seconds and check: all tuples must be expired
-    require('fiber').sleep(5)
-    test:ok(task.expired_tuples_count==11)
+    test:is(task.expired_tuples_count, 0)
+    -- wait 3 seconds and check: all tuples must be expired
+    require('fiber').sleep(3)
+    test:ok(task.expired_tuples_count==tuples_count)
 end)
 
 test:test("zombie task kill", function(test)
@@ -260,7 +262,7 @@ test:test("zombie task kill", function(test)
          check_tuple_expire_by_timestamp,
          put_tuple_to_archive,
          {
-             field_no = 2,
+             field_no = 3,
              archive_space_id = archive_space_id
          }
     )
@@ -273,7 +275,7 @@ test:test("zombie task kill", function(test)
          check_tuple_expire_by_timestamp,
          put_tuple_to_archive,
          {
-             field_no = 2,
+             field_no = 3,
              archive_space_id = archive_space_id
          }
     )
@@ -287,7 +289,7 @@ end)
 test:test("multiple expires test", function(test)
     test:plan(2)
     tuples_count = 10
-    local time = math.floor(os.time())
+    local time = os.time()
     space_name = 'exp_test'
     expire_delta = 2
     
@@ -302,13 +304,13 @@ test:test("multiple expires test", function(test)
          check_tuple_expire_by_timestamp,
          put_tuple_to_archive,
          {
-             field_no = 2,
+             field_no = 3,
              archive_space_id = archive_space_id
          },
          5,
          1
     )
-    fiber = require('fiber')    
+    fiber = require('fiber')
     -- test first expire part
     fiber.sleep(1 + expire_delta)
     local task = expirationd.task_list["test"]
@@ -317,7 +319,7 @@ test:test("multiple expires test", function(test)
     test:ok(cnt < tuples_count and cnt > 0, 'First part expires done')
     
     -- test second expire part
-    fiber.sleep(1 + expire_delta)
+    fiber.sleep(1)
     log.info(task.expired_tuples_count)
     test:ok(expirationd.task_list["test"].expired_tuples_count==tuples_count, 'Multiple expires done')  
 end)

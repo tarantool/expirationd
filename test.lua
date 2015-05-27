@@ -103,27 +103,35 @@ end
 -- Configure box, create spaces and indexes
 local function init_box()
    box.cfg{}
+   local index_type = arg[1] or 'TREE'
+   log.info('Running tests for %s index', index_type)
    if box.space.origin == nil then
       a = box.schema.create_space('origin')
-      a:create_index('first', {type = 'TREE', parts = {1, 'NUM'}})
+      a:create_index('first', {type = index_type, parts = {1, 'NUM'}})
    else
       box.space.origin:truncate()
    end
 
    if box.space.cemetery == nil then
       b = box.schema.create_space('cemetery')
-      b:create_index('first', {type = 'TREE', parts = {1, 'STR'}})
+      b:create_index('first', {type = index_type, parts = {1, 'STR'}})
    else
       box.space.cemetery:truncate()
    end
    
    if box.space.exp_test == nil then
       b = box.schema.create_space('exp_test')
-      b:create_index('first', {type = 'TREE', parts = {1, 'NUM'}})
+      b:create_index('first', {type = index_type, parts = {1, 'NUM'}})
    else
       box.space.exp_test:truncate()
    end
 
+   if box.space.drop_test == nil then
+      b = box.schema.create_space('drop_test')
+      b:create_index('first', {type = index_type, parts = {1, 'NUM'}})
+   else
+      box.space.drop_test:truncate()
+   end
 end
 
 local space_id = 'origin'
@@ -137,8 +145,9 @@ init_box()
 -- 2. errors test, 
 -- 3. not expire test, 
 -- 4. kill zombie test
+-- 5. default drop function test
 -- ========================================================================= --
-test:plan(4)
+test:plan(5)
 
 test:test('simple expires test',  function(test)
     test:plan(4)
@@ -322,6 +331,33 @@ test:test("multiple expires test", function(test)
     fiber.sleep(1)
     log.info(task.expired_tuples_count)
     test:ok(expirationd.task_list["test"].expired_tuples_count==tuples_count, 'Multiple expires done')  
+end)
+
+test:test("default drop function test", function(test)
+    test:plan(2)
+    local tuples_count = 10
+    local space_name = 'drop_test'
+    local space = box.space[space_name]
+    for i = 1, tuples_count do
+        space:insert{i, 'test_data', os.time() + 2}
+    end
+
+    expirationd.run_task(
+        "test_drop",
+         space_name,
+         check_tuple_expire_by_timestamp,
+         nil,
+         {
+             field_no = 3,
+             archive_space_id = archive_space_id
+         },
+         10,
+         1
+    )
+
+    test:ok(space:len() == tuples_count, 'tuples are in space')
+    fiber.sleep(3)
+    test:ok(space:len() == 0, 'all tuples are expired with default function')
 end)
 
 os.exit()

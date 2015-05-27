@@ -70,37 +70,63 @@ local expirationd = {
 -- Task fibers
 -- ------------------------------------------------------------------------- --
 
-local function process_batch(scan_space, task, tuples)
-    for _, tuple in pairs(tuples) do
-        -- do main work
-        if task.is_tuple_expired(task.args, tuple) then
-            task.expired_tuples_count = task.expired_tuples_count + 1
-            task.process_expired_tuple(task.space_id, task.args, tuple)
+
+local function expiration_process(task, tuple)
+    if task.is_tuple_expired(task.args, tuple) then
+        task.expired_tuples_count = task.expired_tuples_count + 1
+        task.process_expired_tuple(task.space_id, task.args, tuple)
+    end
+end
+
+local function set_delay(scan_space, task)
+    if scan_space:len() > 0 then
+        local delay = (task.tuples_per_iteration * task.full_scan_time) / scan_space:len()
+
+        if delay > expirationd.constants.max_delay then
+            delay = expirationd.constants.max_delay
+        end
+        fiber.sleep(delay)
+    end
+end
+
+local function tree_index_iter(scan_space, task)
+    -- iteration with GT iterator
+    local params = {iterator = 'GT', limit = task.tuples_per_iteration}
+    local last_id
+    local tuples = scan_space.index[0]:select({}, params)
+    while #tuples > 0 do
+        last_id = tuples[#tuples][1]
+        for _, tuple in pairs(tuples) do
+            expiration_process(task, tuple)
+        end
+        tuples = scan_space.index[0]:select({last_id}, params)
+        set_delay(scan_space, task)
+    end
+end
+
+local function hash_index_iter(scan_space, task)
+    -- iteration for hash index
+    local checked_tuples_count = 0
+    for _, tuple in scan_space.index[0]:pairs(nil, {iterator = box.index.ALL}) do
+        checked_tuples_count = checked_tuples_count + 1
+        expiration_process(task, tuple)
+        -- find out if the worker can go to sleep
+        if checked_tuples_count >= task.tuples_per_iteration then
+            checked_tuples_count = 0
+            set_delay(scan_space, task)
         end
     end
 end
 
 local function do_worker_iteration(task)
     local scan_space = box.space[task.space_id]
-    local params = {iterator = 'GT', limit = task.tuples_per_iteration}
-    local last_id
+    local index_type = scan_space.index[0].type
 
     -- full index scan loop
-    local tuples = scan_space.index[0]:select({}, params)
-    while #tuples > 0 do
-        last_id = tuples[#tuples][1]
-        process_batch(scan_space, task, tuples)
-        tuples = scan_space.index[0]:select({last_id}, params)
-
-        -- delay if space is not empty
-        if scan_space:len() > 0 then
-            local delay = (task.tuples_per_iteration * task.full_scan_time) / scan_space:len()
-
-            if delay > expirationd.constants.max_delay then
-                delay = expirationd.constants.max_delay
-            end
-            fiber.sleep(delay)
-        end
+    if index_type == 'HASH' then
+        hash_index_iter(scan_space, task)
+    else
+        tree_index_iter(scan_space, task)
     end
 end
 
@@ -191,6 +217,11 @@ local function kill_task(task)
     end
 end
 
+-- default process_expired_tuple function
+local function default_tuple_drop(space_id, args, tuple)
+    box.space[space_id]:delete(tuple[1])
+end
+
 
 -- ========================================================================= --
 -- Expiration daemon management functions
@@ -247,11 +278,12 @@ function expirationd.run_task(name,
 
     -- process expired tuple handler
     if process_expired_tuple == nil then
-        error("process_expired_tuple is nil, please provide a purge function")
+        task.process_expired_tuple = default_tuple_drop
     elseif type(process_expired_tuple) ~= "function" then
         error("process_expired_tuple is not defined, please provide a purge function")
+    else
+        task.process_expired_tuple = process_expired_tuple
     end
-    task.process_expired_tuple = process_expired_tuple
 
     -- optional params
 

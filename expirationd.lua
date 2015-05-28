@@ -78,7 +78,7 @@ local function expiration_process(task, tuple)
     end
 end
 
-local function set_delay(scan_space, task)
+local function suspend(scan_space, task)
     if scan_space:len() > 0 then
         local delay = (task.tuples_per_iteration * task.full_scan_time) / scan_space:len()
 
@@ -100,7 +100,7 @@ local function tree_index_iter(scan_space, task)
             expiration_process(task, tuple)
         end
         tuples = scan_space.index[0]:select({last_id}, params)
-        set_delay(scan_space, task)
+        suspend(scan_space, task)
     end
 end
 
@@ -113,7 +113,7 @@ local function hash_index_iter(scan_space, task)
         -- find out if the worker can go to sleep
         if checked_tuples_count >= task.tuples_per_iteration then
             checked_tuples_count = 0
-            set_delay(scan_space, task)
+            suspend(scan_space, task)
         end
     end
 end

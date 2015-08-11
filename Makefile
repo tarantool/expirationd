@@ -1,11 +1,15 @@
-all:
-	@echo "Only tests are available [common]"
+all: hash tree
+
+
+help:
+	@echo "Only tests are available [hash, tree]"
 
 clean:
-	rm *.xlog
-	rm *.snap
-common:
-	tarantool test.lua TREE
+	rm -f *.xlog *.snap
+
+tree:
+	tarantool test.lua TREE 2> tarantool.log
 	make clean
-	tarantool test.lua HASH
+hash:
+	tarantool test.lua HASH 2>> tarantool.log
 	make clean

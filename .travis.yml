@@ -11,4 +11,4 @@ before_script:
   - sudo apt-get -q install tarantool tarantool-dev
 
 script:
-  - make common
+  - make all

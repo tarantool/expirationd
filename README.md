@@ -21,7 +21,7 @@ end
 function delete_tuple(space_id, args, tuple)
   box.space[space_id]:delete{tuple[1]}
 end
-expirationd.run_task(job_name, space.id, is_expired, {
+expirationd.start(job_name, space.id, is_expired, {
     process_expired_tuple = delete_tuple, args = nil,
     tuple_per_item = 50, full_scan_time = 3600
 })

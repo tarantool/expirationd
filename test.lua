@@ -107,8 +107,8 @@ end
 
 -- Configure box, create spaces and indexes
 local function init_box()
-    box.cfg{}
-    local index_type = arg[1] or 'TREE'
+    box.cfg{ logger = 'tarantool.log' }
+    local index_type = arg[1] or os.getenv('INDEX_TYPE') or 'TREE'
     log.info('Running tests for %s index', index_type)
 
     local a = box.schema.create_space('origin', {if_not_exists = true})

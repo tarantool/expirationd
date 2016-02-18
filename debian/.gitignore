@@ -1,0 +1,5 @@
+tarantool-expirationd/
+files
+stamp-*
+*.substvars
+*.log

@@ -1,15 +1,8 @@
-all: hash tree
+all:
+	@echo "Only tests are available: make test"
 
-
-help:
-	@echo "Only tests are available [hash, tree]"
-
-clean:
-	rm -f *.xlog *.snap
-
-tree:
-	tarantool test.lua TREE 2> tarantool.log
-	make clean
-hash:
-	tarantool test.lua HASH 2>> tarantool.log
-	make clean
+test:
+	INDEX_TYPE='HASH' prove -v ./test.lua
+	rm -rf *.xlog* *.snap
+	INDEX_TYPE='TREE' prove -v ./test.lua
+	rm -rf *.xlog* *.snap

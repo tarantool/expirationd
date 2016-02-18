@@ -1,0 +1,5 @@
+tarantool-expirationd (1.0.0-1) unstable; urgency=medium
+
+  * Initial release
+
+ -- Roman Tsisyk <roman@tarantool.org>  Thu, 18 Feb 2016 10:11:03 +0300

@@ -6,7 +6,6 @@ env:
     global:
       - PRODUCT=tarantool-expirationd
     matrix:
-      - PACK=none
       - OS=el DIST=6 PACK=rpm
       - OS=el DIST=7 PACK=rpm
       - OS=fedora DIST=22 PACK=rpm

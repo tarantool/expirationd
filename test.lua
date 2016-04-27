@@ -1,14 +1,14 @@
 #!/usr/bin/env tarantool
 
-local expirationd = require('expirationd')
-local fiber = require('fiber')
 local log = require('log')
 local tap = require('tap')
--- local strict = require('strict')
+local fiber = require('fiber')
+local expirationd = require('expirationd')
 
 local test = tap.test("expirationd")
 
--- strict.on()
+local strict = require('strict')
+strict.on()
 
 -- ========================================================================= --
 -- local support functions
@@ -107,33 +107,85 @@ end
 
 -- Configure box, create spaces and indexes
 local function init_box()
-    box.cfg{ logger = 'tarantool.log' }
+    box.cfg{
+        logger = 'tarantool.log'
+    }
     local index_type = arg[1] or os.getenv('INDEX_TYPE') or 'TREE'
+    local space_type = arg[2] or os.getenv('SPACE_TYPE') or 'memtx'
+    if space_type == 'sophia' or space_type == 'phia' then
+        space_type = nil
+        if box.error.SOPHIA ~= nil then
+            space_type = 'sophia'
+        elseif box.error.PHIA ~= nil then
+            space_type = 'phia'
+        end
+    end
     log.info('Running tests for %s index', index_type)
 
-    local a = box.schema.create_space('origin', {if_not_exists = true})
-    a:create_index('first', {type = index_type, parts = {1, 'NUM'}, if_not_exists = true})
+    local a = box.schema.create_space('origin', {
+        engine = space_type,
+        if_not_exists = true
+    })
+    a:create_index('first', {
+        type = index_type,
+        parts = {1, 'NUM'},
+        if_not_exists = true
+    })
     a:truncate()
 
-    local b = box.schema.create_space('cemetery', {if_not_exists = true})
-    b:create_index('first', {type = index_type, parts = {1, 'STR'}, if_not_exists = true})
+    local b = box.schema.create_space('cemetery', {
+        engine = space_type,
+        if_not_exists = true
+    })
+    b:create_index('first', {
+        type = index_type,
+        parts = {1, 'STR'},
+        if_not_exists = true
+    })
     b:truncate()
 
-    local c = box.schema.create_space('exp_test', {if_not_exists = true})
-    c:create_index('first', {type = index_type, parts = {1, 'NUM'}, if_not_exists = true})
+    local c = box.schema.create_space('exp_test', {
+        engine = space_type,
+        if_not_exists = true
+    })
+    c:create_index('first', {
+        type = index_type,
+        parts = {1, 'NUM'},
+        if_not_exists = true
+    })
     c:truncate()
 
-    local d = box.schema.create_space('drop_test', {if_not_exists = true})
-    d:create_index('first', {type = index_type, parts = {1, 'NUM'}, if_not_exists = true})
+    local d = box.schema.create_space('drop_test', {
+        engine = space_type,
+        if_not_exists = true
+    })
+    d:create_index('first', {
+        type = index_type,
+        parts = {1, 'NUM'},
+        if_not_exists = true
+    })
     d:truncate()
 
-    local e = box.schema.create_space('restart_test', {if_not_exists = true})
-    e:create_index('first', {type = index_type, parts = {1, 'NUM'}, if_not_exists = true})
+    local e = box.schema.create_space('restart_test', {
+        engine = space_type,
+        if_not_exists = true
+    })
+    e:create_index('first', {
+        type = index_type,
+        parts = {1, 'NUM'},
+        if_not_exists = true
+    })
     e:truncate()
 
-    local f = box.schema.create_space('complex_test', {if_not_exists = true})
-    f:create_index('first', {type = index_type, parts = {2, 'NUM', 1, 'NUM'},
-            if_not_exists = true})
+    local f = box.schema.create_space('complex_test', {
+        engine = space_type,
+        if_not_exists = true
+    })
+    f:create_index('first', {
+        type = index_type,
+        parts = {2, 'NUM', 1, 'NUM'},
+        if_not_exists = true
+    })
     f:truncate()
 end
 
@@ -431,8 +483,4 @@ test:test("complex key test", function(test)
     expirationd.kill_task("test")
 end)
 
-test:check()
-
--- strict.off()
-
-os.exit()
+os.exit(test:check() and 0 or 1)

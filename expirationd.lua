@@ -58,6 +58,12 @@ local constants = {
 -- Task fibers
 -- ------------------------------------------------------------------------- --
 
+local function construct_key(space_id, tuple)
+    return fun.map(
+        function(x) return tuple[x.fieldno] end,
+        box.space[space_id].index[0].parts
+    ):totable()
+end
 
 local function expiration_process(task, tuple)
     task.checked_tuples_count = task.checked_tuples_count + 1
@@ -69,8 +75,8 @@ end
 
 local function suspend(scan_space, task)
     if scan_space:len() > 0 then
-        local delay = (task.tuples_per_iteration * task.full_scan_time) / scan_space:len()
-
+        local delay = (task.tuples_per_iteration * task.full_scan_time)
+        delay = delay / scan_space:len()
         if delay > constants.max_delay then
             delay = constants.max_delay
         end
@@ -84,11 +90,12 @@ local function tree_index_iter(scan_space, task)
     local last_id
     local tuples = scan_space.index[0]:select({}, params)
     while #tuples > 0 do
-        last_id = tuples[#tuples][1]
+        last_id = tuples[#tuples]
         for _, tuple in pairs(tuples) do
             expiration_process(task, tuple)
         end
-        tuples = scan_space.index[0]:select({last_id}, params)
+        local key = construct_key(scan_space.id, last_id)
+        tuples = scan_space.index[0]:select(key, params)
         suspend(scan_space, task)
     end
 end
@@ -230,12 +237,7 @@ end
 
 -- default process_expired_tuple function
 local function default_tuple_drop(space_id, args, tuple)
-    local key = fun.map(
-        function(x) return tuple[x.fieldno] end,
-        box.space[space_id].index[0].parts
-    ):totable()
-
-    box.space[space_id]:delete(key)
+    box.space[space_id]:delete(construct_key(space_id, tuple))
 end
 
 

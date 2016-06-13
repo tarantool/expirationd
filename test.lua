@@ -52,6 +52,8 @@ local function put_tuple_to_archive(space_id, args, tuple)
     end
 end
 
+local nonexistentfunction = nil
+
 local function check_tuple_expire_by_timestamp_error(args, tuple)
    nonexistentfunction()
 end

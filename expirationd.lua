@@ -338,7 +338,7 @@ local function expirationd_run_task(name, space_id, is_tuple_expired, options)
     return task
 end
 
-function expirationd_run_task_obsolete(name,
+local function expirationd_run_task_obsolete(name,
                               space_id,
                               is_tuple_expired,
                               process_expired_tuple,
@@ -378,7 +378,7 @@ local function expirationd_task_stats(name)
     if name ~= nil then
         return get_task(name):statistics()
     end
-    retval = {}
+    local retval = {}
     for name, task in pairs(task_list) do
         retval[name] = task:statistics()
     end

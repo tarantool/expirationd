@@ -2,21 +2,21 @@
 -- Tarantool/Box expiration daemon
 --
 -- Daemon management functions:
---   - expirationd.start    -- start a new expiration task
---   - expirationd.stats    -- show task stats
---   - expirationd.update   -- update expirationd from disk
---   - expirationd.kill     -- kill a running task
---   - expirationd.task     -- get an existing task
---   - expirationd.tasks    -- get list with all tasks
+--   - expirationd.start  -- start a new expiration task
+--   - expirationd.stats  -- show task stats
+--   - expirationd.update -- update expirationd from disk
+--   - expirationd.kill   -- kill a running task
+--   - expirationd.task   -- get an existing task
+--   - expirationd.tasks  -- get list with all tasks
 -- ========================================================================= --
 
 -- ========================================================================= --
 -- local support functions
 -- ========================================================================= --
 
+local fun = require('fun')
 local log = require('log')
 local fiber = require('fiber')
-local fun = require('fun')
 
 -- get fiber id function
 local function get_fiber_id(fiber)
@@ -30,25 +30,21 @@ end
 local task_list = {}
 
 local constants = {
-    -- default value of number of tuples that
-    -- will be checked by one iteration
+    -- default value of number of tuples that will be checked by one iteration
     default_tuples_per_iteration = 1024,
-    -- default value of time required for full
-    -- index scan (in seconds)
+    -- default value of time required for full index scan (in seconds)
     default_full_scan_time = 3600,
     -- maximal worker delay (seconds)
     max_delay = 1,
     -- check worker interval
     check_interval = 1,
     -- force expirationd, even if started on replica (false by default)
-    force = false
+    force = false,
+    -- assumed size of vinyl space (in the first iteration)
+    default_vinyl_assumed_space_len = math.pow(10, 7),
+    -- factor for recalculation of vinyl space size
+    default_vinyl_assumed_space_len_factor = 2
 }
-
--- ========================================================================= --
--- Expiration daemon global variables
--- ========================================================================= --
-
--- main table
 
 -- ========================================================================= --
 -- Task local functions
@@ -73,14 +69,16 @@ local function expiration_process(task, tuple)
     end
 end
 
+local function suspend_basic(scan_space, task, len)
+    local delay = (task.tuples_per_iteration * task.full_scan_time)
+    delay = math.min(delay / len, constants.max_delay)
+    fiber.sleep(delay)
+end
+
 local function suspend(scan_space, task)
-    if scan_space:len() > 0 then
-        local delay = (task.tuples_per_iteration * task.full_scan_time)
-        delay = delay / scan_space:len()
-        if delay > constants.max_delay then
-            delay = constants.max_delay
-        end
-        fiber.sleep(delay)
+    local space_len = scan_space:len()
+    if space_len > 0 then
+        suspend_basic(scan_space, task, space_len)
     end
 end
 
@@ -91,13 +89,14 @@ local function tree_index_iter(scan_space, task)
     local tuples = scan_space.index[0]:select({}, params)
     while #tuples > 0 do
         last_id = tuples[#tuples]
-        for _, tuple in pairs(tuples) do
+        for _, tuple in ipairs(tuples) do
             expiration_process(task, tuple)
         end
         local key = construct_key(scan_space.id, last_id)
         tuples = scan_space.index[0]:select(key, params)
         suspend(scan_space, task)
     end
+
 end
 
 local function hash_index_iter(scan_space, task)
@@ -114,7 +113,7 @@ local function hash_index_iter(scan_space, task)
     end
 end
 
-local function do_worker_iteration(task)
+local function default_do_worker_iteration(task)
     local scan_space = box.space[task.space_id]
     local index_type = scan_space.index[0].type
 
@@ -126,13 +125,42 @@ local function do_worker_iteration(task)
     end
 end
 
+local function vinyl_do_worker_iteration(task)
+    local scan_space = box.space[task.space_id]
+
+    local checked_tuples_count = 0
+    local space_len = task.vinyl_assumed_space_len
+
+    local params = {iterator = 'GT', limit = task.tuples_per_iteration}
+    local tuples = scan_space.index[0]:select({}, params)
+    while true do
+        local tuple_cnt = #tuples
+        if tuple_cnt == 0 then
+            break
+        end
+        local last_id = nil
+        for _, tuple in ipairs(tuples) do
+            last_id = tuple
+            expiration_process(task, tuple)
+        end
+        checked_tuples_count = checked_tuples_count + tuple_cnt
+        if checked_tuples_count > space_len then
+            space_len = task.vinyl_assumed_space_len_factor * space_len
+        end
+        local key = construct_key(scan_space.id, last_id)
+        suspend_basic(scan_space, task, space_len)
+        tuples = scan_space.index[0]:select(key, params)
+    end
+    task.vinyl_assumed_space_len = checked_tuples_count
+end
+
 local function worker_loop(task)
     -- detach worker from the guardian and attach it to sched fiber
     fiber.self():name(task.name)
 
     while true do
         if box.cfg.replication_source == nil or task.force then
-            do_worker_iteration(task)
+            task.do_worker_iteration(task)
         end
 
         -- iteration is complete, yield
@@ -204,20 +232,23 @@ local Task_methods = {
 
 -- create new expiration task
 local function create_task(name)
-    local task = setmetatable({}, { __index = Task_methods })
-    task.name = name
-    task.start_time = fiber.time()
-    task.guardian_fiber = nil
-    task.worker_fiber = nil
-    task.space_id = nil
-    task.expired_tuples_count = 0
-    task.checked_tuples_count = 0
-    task.restarts = 0
-    task.is_tuple_expired = nil
-    task.process_expired_tuple = nil
-    task.args = nil
-    task.tuples_per_iteration = constants.default_tuples_per_iteration
-    task.full_scan_time = constants.default_full_scan_time
+    local task = setmetatable({
+        name                  = name,
+        start_time            = fiber.time(),
+        guardian_fiber        = nil,
+        worker_fiber          = nil,
+        space_id              = nil,
+        expired_tuples_count  = 0,
+        checked_tuples_count  = 0,
+        restarts              = 0,
+        is_tuple_expired      = nil,
+        process_expired_tuple = nil,
+        args                  = nil,
+        tuples_per_iteration           = constants.default_tuples_per_iteration,
+        full_scan_time                 = constants.default_full_scan_time,
+        vinyl_assumed_space_len        = constants.default_vinyl_assumed_space_len,
+        vinyl_assumed_space_len_factor = constants.default_vinyl_assumed_space_len_factor,
+    }, { __index = Task_methods })
     return task
 end
 
@@ -326,9 +357,25 @@ local function expirationd_run_task(name, space_id, is_tuple_expired, options)
         task.force = options.force
     end
 
-    --
-    -- run task
-    --
+    if options.vinyl_assumed_space_len ~= nil then
+        if type(options.vinyl_assumed_space_len) ~= 'number' then
+            error("Invalid type of vinyl_assumed_space_len value")
+        end
+        task.vinyl_assumed_space_len = options.vinyl_assumed_space_len
+    end
+
+    if options.vinyl_assumed_space_len_factor ~= nil then
+        if type(options.vinyl_assumed_space_len_factor) ~= 'number' then
+            error("Invalid type of vinyl_assumed_space_len_factor value")
+        end
+        task.vinyl_assumed_space_len_factor = options.vinyl_assumed_space_len_factor
+    end
+
+    if box.space[task.space_id].engine == 'vinyl' then
+        task.do_worker_iteration = vinyl_do_worker_iteration
+    else
+        task.do_worker_iteration = default_do_worker_iteration
+    end
 
     -- put the task to table
     task_list[name] = task

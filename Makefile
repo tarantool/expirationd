@@ -2,7 +2,10 @@ all:
 	@echo "Only tests are available: make test"
 
 test:
-	INDEX_TYPE='HASH' prove -v ./test.lua
-	rm -rf *.xlog* *.snap
-	INDEX_TYPE='TREE' prove -v ./test.lua
-	rm -rf *.xlog* *.snap
+	rm -rf *.xlog* *.snap 51{2,3,4,5,6,7}
+	INDEX_TYPE='TREE' SPACE_TYPE='vinyl' ./test.lua
+	rm -rf *.xlog* *.snap 51{2,3,4,5,6,7}
+	INDEX_TYPE='HASH' ./test.lua
+	rm -rf *.xlog* *.snap 51{2,3,4,5,6,7}
+	INDEX_TYPE='TREE' ./test.lua
+	rm -rf *.xlog* *.snap 51{2,3,4,5,6,7}

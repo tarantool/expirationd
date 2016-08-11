@@ -1,17 +1,18 @@
 #!/usr/bin/env tarantool
 
+local fun = require('fun')
 local log = require('log')
 local tap = require('tap')
 local fiber = require('fiber')
+local strict = require('strict')
 local expirationd = require('expirationd')
 
 local test = tap.test("expirationd")
 
-local strict = require('strict')
 strict.on()
 
 -- ========================================================================= --
--- local support functions
+--                          local support functions                          --
 -- ========================================================================= --
 
 -- get field
@@ -25,6 +26,24 @@ local function get_field(tuple, field_no)
     end
 
     return tuple[field_no]
+end
+
+local function construct_key(space_id, tuple)
+    return fun.map(
+        function(x) return tuple[x.fieldno] end,
+        box.space[space_id].index[0].parts
+    ):totable()
+end
+
+local function truncate(space_id)
+    local sp = box.space[space_id]
+    if sp.engine == 'memtx' then
+        return sp:truncate()
+    else
+        fun.iter(box.space[space_id]:select()):each(function(tuple)
+            box.space[space_id]:delete(construct_key(space_id, tuple))
+        end)
+    end
 end
 
 -- ========================================================================= --
@@ -114,12 +133,14 @@ local function init_box()
     }
     local index_type = arg[1] or os.getenv('INDEX_TYPE') or 'TREE'
     local space_type = arg[2] or os.getenv('SPACE_TYPE') or 'memtx'
-    if space_type == 'sophia' or space_type == 'phia' then
+    if space_type == 'sophia' or space_type == 'phia' or space_type == 'vinyl' then
         space_type = nil
         if box.error.SOPHIA ~= nil then
             space_type = 'sophia'
         elseif box.error.PHIA ~= nil then
             space_type = 'phia'
+        elseif box.error.VINYL ~= nil then
+            space_type = 'vinyl'
         end
     end
     log.info('Running tests for %s index', index_type)
@@ -133,7 +154,7 @@ local function init_box()
         parts = {1, 'NUM'},
         if_not_exists = true
     })
-    a:truncate()
+    truncate(a.id)
 
     local b = box.schema.create_space('cemetery', {
         engine = space_type,
@@ -144,7 +165,7 @@ local function init_box()
         parts = {1, 'STR'},
         if_not_exists = true
     })
-    b:truncate()
+    truncate(b.id)
 
     local c = box.schema.create_space('exp_test', {
         engine = space_type,
@@ -155,7 +176,7 @@ local function init_box()
         parts = {1, 'NUM'},
         if_not_exists = true
     })
-    c:truncate()
+    truncate(c.id)
 
     local d = box.schema.create_space('drop_test', {
         engine = space_type,
@@ -166,7 +187,7 @@ local function init_box()
         parts = {1, 'NUM'},
         if_not_exists = true
     })
-    d:truncate()
+    truncate(d.id)
 
     local e = box.schema.create_space('restart_test', {
         engine = space_type,
@@ -177,7 +198,7 @@ local function init_box()
         parts = {1, 'NUM'},
         if_not_exists = true
     })
-    e:truncate()
+    truncate(e.id)
 
     local f = box.schema.create_space('complex_test', {
         engine = space_type,
@@ -188,7 +209,7 @@ local function init_box()
         parts = {2, 'NUM', 1, 'NUM'},
         if_not_exists = true
     })
-    f:truncate()
+    truncate(f.id)
 end
 
 local space_id = 'origin'
@@ -236,7 +257,7 @@ test:test('simple expires test',  function(test)
     local start_time = fiber.time()
     log.info("------------- wait ------------")
     log.info("before time = " .. os.date('%X', start_time))
-    require('fiber').sleep(5)
+    fiber.sleep(5)
     local end_time = fiber.time()
     log.info("after time = " .. os.date('%X', end_time))
 
@@ -252,7 +273,11 @@ test:test('simple expires test',  function(test)
     local task = expirationd.get_task("test")
     test:is(task.start_time, start_time)
     test:is(task.name, "test")
-    test:is(task.restarts, 1)
+    local restarts = 5
+    if box.space[space_id].engine == 'memtx' then
+        restarts = 1
+    end
+    test:is(task.restarts, restarts)
     test:is(task.expired_tuples_count, 7, 'Test task executed and moved to archive')
     expirationd.kill_task("test")
 end)
@@ -287,7 +312,9 @@ end)
 
 test:test("not expired task",  function(test)
     test:plan(2)
-    box.space[space_id]:truncate()
+
+    truncate(space_id)
+
     local tuples_count = 5
     local time = fiber.time()
     for i = 1, tuples_count do
@@ -308,7 +335,7 @@ test:test("not expired task",  function(test)
     -- after run tuples is not expired
     test:is(task.expired_tuples_count, 0)
     -- wait 3 seconds and check: all tuples must be expired
-    require('fiber').sleep(3)
+    fiber.sleep(3)
     test:is(task.expired_tuples_count, tuples_count)
     expirationd.kill_task("test")
 end)
@@ -411,9 +438,9 @@ test:test("default drop function test", function(test)
          1
     )
 
-    test:is(space:len(), tuples_count, 'tuples are in space')
+    test:is(space:count{}, tuples_count, 'tuples are in space')
     fiber.sleep(3)
-    test:is(space:len(), 0, 'all tuples are expired with default function')
+    test:is(space:count{}, 0, 'all tuples are expired with default function')
     expirationd.kill_task("test")
 end)
 
@@ -447,9 +474,9 @@ test:test("restart test", function(test)
               tostring(expirationd):match('0x.*'),
               'new expirationd table')
 
-    test:is(space:len(), tuples_count, 'tuples are in space')
+    test:is(space:count{}, tuples_count, 'tuples are in space')
     fiber.sleep(4)
-    test:is(space:len(), 0, 'all tuples are expired')
+    test:is(space:count{}, 0, 'all tuples are expired')
 
     task:statistics()
 
@@ -479,9 +506,9 @@ test:test("complex key test", function(test)
          1
     )
 
-    test:is(space:len(), tuples_count, 'tuples are in space')
+    test:is(space:count{}, tuples_count, 'tuples are in space')
     fiber.sleep(3.1)
-    test:is(space:len(), 0, 'all tuples are expired with default function')
+    test:is(space:count{}, 0, 'all tuples are expired with default function')
     expirationd.kill_task("test")
 end)
 

@@ -23,7 +23,7 @@ function delete_tuple(space_id, args, tuple)
 end
 expirationd.start(job_name, space.id, is_expired, {
     process_expired_tuple = delete_tuple, args = nil,
-    tuple_per_item = 50, full_scan_time = 3600
+    tuples_per_iteration = 50, full_scan_time = 3600
 })
 ```
 

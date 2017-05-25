@@ -135,12 +135,10 @@ local function init_box()
     local space_type = arg[2] or os.getenv('SPACE_TYPE') or 'memtx'
     if space_type == 'sophia' or space_type == 'phia' or space_type == 'vinyl' then
         space_type = nil
-        if box.error.SOPHIA ~= nil then
-            space_type = 'sophia'
-        elseif box.error.PHIA ~= nil then
-            space_type = 'phia'
-        elseif box.error.VINYL ~= nil then
+        if box.error.VINYL ~= nil then
             space_type = 'vinyl'
+        else
+            os.exit(0)
         end
     end
     log.info('Running tests for %s index', index_type)

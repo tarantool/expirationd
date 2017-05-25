@@ -271,13 +271,13 @@ test:test('simple expires test',  function(test)
     expirationd.show_task_list(true)
 
     local task = expirationd.get_task("test")
-    test:is(task.start_time, start_time)
-    test:is(task.name, "test")
+    test:is(task.start_time, start_time, 'checking start time')
+    test:is(task.name, "test", 'checking task name')
     local restarts = 5
     if box.space[space_id].engine == 'memtx' then
         restarts = 1
     end
-    test:is(task.restarts, restarts)
+    test:is(task.restarts, restarts, 'checking restart count')
     test:is(task.expired_tuples_count, 7, 'Test task executed and moved to archive')
     expirationd.kill_task("test")
 end)
@@ -294,7 +294,7 @@ test:test("execution error test", function (test)
             archive_space_id = archive_space_id
         }
     )
-    test:is(expirationd.get_task("test").restarts, 1)
+    test:is(expirationd.get_task("test").restarts, 1, 'checking restart count')
 
     expirationd.run_task("test",
          space_id,
@@ -333,10 +333,10 @@ test:test("not expired task",  function(test)
     )
     local task = expirationd.get_task("test")
     -- after run tuples is not expired
-    test:is(task.expired_tuples_count, 0)
+    test:is(task.expired_tuples_count, 0, 'checking expired tuples empty')
     -- wait 3 seconds and check: all tuples must be expired
     fiber.sleep(3)
-    test:is(task.expired_tuples_count, tuples_count)
+    test:is(task.expired_tuples_count, tuples_count, 'checking expired tuples count')
     expirationd.kill_task("test")
 end)
 
@@ -359,7 +359,7 @@ test:test("zombie task kill", function(test)
          }
     )
     local fiber_obj = expirationd.get_task("test").guardian_fiber
-    test:is(fiber_obj:status(), 'suspended')
+    test:is(fiber_obj:status(), 'suspended', 'checking status of fiber')
     -- run again and check - it must kill first task
     expirationd.run_task(
         "test",
@@ -372,9 +372,9 @@ test:test("zombie task kill", function(test)
          }
     )
     local task = expirationd.get_task("test")
-    test:is(task.restarts, 1)
+    test:is(task.restarts, 1, 'checking restart count')
     -- check is first fiber killed
-    test:is(task.guardian_fiber:status(), "suspended")
+    test:is(task.guardian_fiber:status(), "suspended", 'checking status of fiber')
     test:is(fiber_obj:status(), 'dead', "Zombie task was killed and restarted")
     expirationd.kill_task("test")
 end)

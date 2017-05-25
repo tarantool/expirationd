@@ -196,19 +196,22 @@ end
 -- * task:statistics() -- return table with statistics
 local Task_methods = {
     start = function (self)
---        if (get_fiber_id(self.worker_loop) ~= 0) then
---            self.worker_loop:cancel()
---            self.guardian_fiber = nil
---        end
+        self:stop()
         self.guardian_fiber = fiber.create(guardian_loop, self)
     end,
     stop = function (self)
         if (get_fiber_id(self.guardian_fiber) ~= 0) then
             self.guardian_fiber:cancel()
+            while self.guardian_fiber:status() ~= 'dead' do
+                fiber.sleep(0.01)
+            end
             self.guardian_fiber = nil
         end
         if (get_fiber_id(self.worker_fiber) ~= 0) then
             self.worker_fiber:cancel()
+            while self.worker_fiber:status() ~= 'dead' do
+                fiber.sleep(0.01)
+            end
             self.worker_fiber = nil
         end
     end,

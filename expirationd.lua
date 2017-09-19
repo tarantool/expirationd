@@ -156,7 +156,7 @@ end
 
 local function worker_loop(task)
     -- detach worker from the guardian and attach it to sched fiber
-    fiber.self():name(task.name)
+    fiber.name(string.format("worker of %q", task.name), { truncate = true })
 
     while true do
         if box.cfg.replication_source == nil or task.force then
@@ -170,7 +170,7 @@ end
 
 local function guardian_loop(task)
     -- detach the guardian from the creator and attach it to sched
-    fiber.self():name(string.format("guardian of %q", task.name))
+    fiber.name(string.format("guardian of %q", task.name), { truncate = true })
 
     while true do
         if get_fiber_id(task.worker_fiber) == 0 then

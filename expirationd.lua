@@ -451,9 +451,16 @@ end
 -- * restart all tasks
 local function expirationd_update()
     local expd_prev = require('expirationd')
+    table.clear(expd_prev)
+    setmetatable(expd_prev, {
+        __index = function(name)
+            error("Wait until update is done before using expirationd", 2)
+        end
+    })
     package.loaded['expirationd'] = nil
     local expd_new  = require('expirationd')
-    for name, task in pairs(task_list) do
+    local tmp_task_list = task_list; task_list = {}
+    for name, task in pairs(tmp_task_list) do
         task:kill()
         expd_new.start(
             task.name, task.space_id,
@@ -463,6 +470,12 @@ local function expirationd_update()
                 full_scan_time = task.full_scan_time, force = task.force
             }
         )
+    end
+    -- update old function table to represent new reloaded expirationd
+    -- some kind of dirty hack if user forgot to require new expirationd
+    setmetatable(expd_prev, nil)
+    for name, func in pairs(expd_new) do
+        expd_prev[name] = func
     end
 end
 

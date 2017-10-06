@@ -11,23 +11,32 @@ env:
     global:
       - PRODUCT=tarantool-expirationd
     matrix:
+      - TARGET=test VERSION=1_6
+      - TARGET=test VERSION=1_7
+      - TARGET=test VERSION=1_8
       - OS=el DIST=6
       - OS=el DIST=7
-      - OS=fedora DIST=24
       - OS=fedora DIST=25
+      - OS=fedora DIST=26
       - OS=ubuntu DIST=precise
       - OS=ubuntu DIST=trusty
       - OS=ubuntu DIST=xenial
       - OS=ubuntu DIST=yakkety
+      - OS=ubuntu DIST=zesty
+      - OS=ubuntu DIST=artful
       - OS=debian DIST=wheezy
       - OS=debian DIST=jessie
       - OS=debian DIST=stretch
 
-
 script:
   - git describe --long
-  - git clone https://github.com/packpack/packpack.git packpack
-  - packpack/packpack
+  - |
+    if [ "${TARGET}" = "test" ]; then
+        ./test.sh;
+    else
+        git clone https://github.com/packpack/packpack.git packpack;
+        packpack/packpack;
+    fi;
 
 before_deploy:
   - ls -l build/
@@ -43,7 +52,7 @@ deploy:
     skip_cleanup: true
     on:
       branch: master
-      condition: -n "${OS}" && -n "${DIST}" && -n "${PACKAGECLOUD_TOKEN}"
+      condition: -n "${OS}" && -n "${DIST}" && -n "${PACKAGECLOUD_TOKEN}" && "${TRAVIS_EVENT_TYPE}" != 'cron'
   - provider: packagecloud
     username: tarantool
     repository: "1_7"
@@ -53,7 +62,7 @@ deploy:
     skip_cleanup: true
     on:
       branch: master
-      condition: -n "${OS}" && -n "${DIST}" && -n "${PACKAGECLOUD_TOKEN}"
+      condition: -n "${OS}" && -n "${DIST}" && -n "${PACKAGECLOUD_TOKEN}" && "${TRAVIS_EVENT_TYPE}" != 'cron'
   - provider: packagecloud
     username: tarantool
     repository: "1_8"
@@ -63,7 +72,13 @@ deploy:
     skip_cleanup: true
     on:
       branch: master
-      condition: -n "${OS}" && -n "${DIST}" && -n "${PACKAGECLOUD_TOKEN}"
+      condition: -n "${OS}" && -n "${DIST}" && -n "${PACKAGECLOUD_TOKEN}" && "${TRAVIS_EVENT_TYPE}" != 'cron'
+  # Archive packages
+  # - provider: script
+  #   script: ./travis-archive.sh modules
+  #   on:
+  #     branch: master
+  #     condition: -n "${OS}" && -n "${DIST}" && -n "${PACKAGECLOUD_TOKEN}" && "${TRAVIS_EVENT_TYPE}" != 'cron'
 
 notifications:
   email:

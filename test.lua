@@ -3,6 +3,7 @@
 local fun = require('fun')
 local log = require('log')
 local tap = require('tap')
+local yaml = require('yaml')
 local fiber = require('fiber')
 local strict = require('strict')
 local expirationd = require('expirationd')
@@ -49,6 +50,14 @@ end
 -- ========================================================================= --
 -- Expiration handlers examples
 -- ========================================================================= --
+
+local function len(arg)
+    local len = 0
+    for k, v in pairs(arg) do
+        len = len + 1
+    end
+    return len
+end
 
 -- check tuple's expiration by timestamp (stored in last field)
 local function check_tuple_expire_by_timestamp(args, tuple)
@@ -443,26 +452,40 @@ test:test("default drop function test", function(test)
 end)
 
 test:test("restart test", function(test)
-    test:plan(3)
+    test:plan(5)
     local tuples_count = 10
     local space_name = 'restart_test'
     local space = box.space[space_name]
 
-    local task = expirationd.run_task(
-        "test",
-         space_name,
-         check_tuple_expire_by_timestamp,
-         nil,
-         {
-             field_no = 3,
-             archive_space_id = archive_space_id
-         },
-         10,
-         1
+    local task1 = expirationd.run_task(
+        "test1", space_name, check_tuple_expire_by_timestamp,
+         nil, { field_no = 3, archive_space_id = archive_space_id }, 10, 1
+    )
+    local task2 = expirationd.run_task(
+        "test2", space_name, check_tuple_expire_by_timestamp,
+         nil, { field_no = 3, archive_space_id = archive_space_id }, 10, 1
+    )
+    local task3 = expirationd.run_task(
+        "test3", space_name, check_tuple_expire_by_timestamp,
+         nil, { field_no = 3, archive_space_id = archive_space_id }, 10, 1
+    )
+    local task4 = expirationd.run_task(
+        "test4", space_name, check_tuple_expire_by_timestamp,
+         nil, { field_no = 3, archive_space_id = archive_space_id }, 10, 1
     )
 
+    local fiber_cnt = len(fiber.info())
     local old_expd = expirationd
-    expirationd.update()
+
+    local chan = fiber.channel(1)
+    local fiber_update = fiber.create(function()
+        expirationd.update()
+        chan:put(1)
+    end)
+    local ok, err = pcall(function() expirationd.start() end)
+    test:like(err, ".*Wait until update is done.*", "error while reloading")
+    chan:get()
+
     for i = 1, tuples_count do
         space:insert{i, 'test_data', fiber.time() + 1}
     end
@@ -476,9 +499,13 @@ test:test("restart test", function(test)
     fiber.sleep(4)
     test:is(space:count{}, 0, 'all tuples are expired')
 
-    task:statistics()
+    task1:statistics()
+    test:is(fiber_cnt, len(fiber.info()), "check for absence of ghost fibers")
 
-    expirationd.kill_task("test")
+    expirationd.kill_task("test1")
+    expirationd.kill_task("test2")
+    expirationd.kill_task("test3")
+    expirationd.kill_task("test4")
 end)
 
 test:test("complex key test", function(test)

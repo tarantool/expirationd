@@ -1,13 +1,13 @@
 package = "expirationd"
-version = "scm-1"
+version = "1.0.1-1"
 source = {
     url = "git://github.com/tarantool/expirationd.git",
-    branch = "master",
+    tag = "1.0.1",
 }
 description = {
     summary = "Expiration daemon for Tarantool",
     homepage = "https://github.com/tarantool/expirationd",
-    license = "Artistic",
+    license = "BSD2",
     maintainer = "Eugine Blikh <bigbes@tarantool.org>"
 }
 dependencies = {

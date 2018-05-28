@@ -1,4 +1,4 @@
-VERSION=${VERSION:-1_6}
+VERSION=${VERSION:-1_7}
 
 curl https://packagecloud.io/tarantool/${VERSION}/gpgkey | sudo apt-key add -
 release=`lsb_release -c -s`

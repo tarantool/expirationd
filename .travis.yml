@@ -73,6 +73,16 @@ deploy:
     on:
       branch: master
       condition: -n "${OS}" && -n "${DIST}" && -n "${PACKAGECLOUD_TOKEN}" && "${TRAVIS_EVENT_TYPE}" != 'cron'
+  - provider: packagecloud
+      username: tarantool
+      repository: "1_9"
+      token: ${PACKAGECLOUD_TOKEN}
+      dist: ${OS}/${DIST}
+      package_glob: build/*.{rpm,deb,dsc}
+      skip_cleanup: true
+      on:
+        branch: master
+        condition: -n "${OS}" && -n "${DIST}" && -n "${PACKAGECLOUD_TOKEN}" && "${TRAVIS_EVENT_TYPE}" != 'cron'
   # Archive packages
   # - provider: script
   #   script: ./travis-archive.sh modules

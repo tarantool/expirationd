@@ -159,7 +159,7 @@ local function worker_loop(task)
     fiber.name(string.format("worker of %q", task.name), { truncate = true })
 
     while true do
-        if ((box.cfg.replication_source == nil and box.cfg.replication == nil) or task.force) and (not box.info.ro) then
+        if task.force and (not box.info.ro) then
             task.do_worker_iteration(task)
         end
 

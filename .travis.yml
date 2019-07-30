@@ -11,20 +11,22 @@ env:
     global:
       - PRODUCT=tarantool-expirationd
     matrix:
-      - TARGET=test VERSION=1_7
-      - TARGET=test VERSION=1_9
       - TARGET=test VERSION=1_10
-      - TARGET=test VERSION=2_0
+      - TARGET=test VERSION=2x
+      - TARGET=test VERSION=2_2
       - OS=el DIST=6
       - OS=el DIST=7
-      - OS=fedora DIST=25
-      - OS=fedora DIST=26
+      - OS=fedora DIST=28
+      - OS=fedora DIST=29
+      - OS=fedora DIST=30
       - OS=ubuntu DIST=trusty
       - OS=ubuntu DIST=xenial
-      - OS=ubuntu DIST=artful
-      - OS=debian DIST=wheezy
+      - OS=ubuntu DIST=bionic
+      - OS=ubuntu DIST=cosmic
+      - OS=ubuntu DIST=disco
       - OS=debian DIST=jessie
       - OS=debian DIST=stretch
+      - OS=debian DIST=buster
 
 script:
   - git describe --long
@@ -43,39 +45,6 @@ deploy:
   # Deploy packages to PackageCloud
   - provider: packagecloud
     username: tarantool
-    repository: "1_6"
-    token: ${PACKAGECLOUD_TOKEN}
-    dist: ${OS}/${DIST}
-    package_glob: build/*.{rpm,deb,dsc}
-    skip_cleanup: true
-    on:
-      branch: master
-      condition: -n "${OS}" && -n "${DIST}" && -n "${PACKAGECLOUD_TOKEN}" && "${TRAVIS_EVENT_TYPE}" != 'cron'
-
-  - provider: packagecloud
-    username: tarantool
-    repository: "1_7"
-    token: ${PACKAGECLOUD_TOKEN}
-    dist: ${OS}/${DIST}
-    package_glob: build/*.{rpm,deb,dsc}
-    skip_cleanup: true
-    on:
-      branch: master
-      condition: -n "${OS}" && -n "${DIST}" && -n "${PACKAGECLOUD_TOKEN}" && "${TRAVIS_EVENT_TYPE}" != 'cron'
-
-  - provider: packagecloud
-    username: tarantool
-    repository: "1_9"
-    token: ${PACKAGECLOUD_TOKEN}
-    dist: ${OS}/${DIST}
-    package_glob: build/*.{rpm,deb,dsc}
-    skip_cleanup: true
-    on:
-      branch: master
-      condition: -n "${OS}" && -n "${DIST}" && -n "${PACKAGECLOUD_TOKEN}" && "${TRAVIS_EVENT_TYPE}" != 'cron'
-
-  - provider: packagecloud
-    username: tarantool
     repository: "1_10"
     token: ${PACKAGECLOUD_TOKEN}
     dist: ${OS}/${DIST}
@@ -88,6 +57,17 @@ deploy:
   - provider: packagecloud
     username: tarantool
     repository: "2x"
+    token: ${PACKAGECLOUD_TOKEN}
+    dist: ${OS}/${DIST}
+    package_glob: build/*.{rpm,deb,dsc}
+    skip_cleanup: true
+    on:
+      branch: master
+      condition: -n "${OS}" && -n "${DIST}" && -n "${PACKAGECLOUD_TOKEN}" && "${TRAVIS_EVENT_TYPE}" != 'cron'
+
+  - provider: packagecloud
+    username: tarantool
+    repository: "2_2"
     token: ${PACKAGECLOUD_TOKEN}
     dist: ${OS}/${DIST}
     package_glob: build/*.{rpm,deb,dsc}

@@ -83,20 +83,15 @@ local function suspend(scan_space, task)
 end
 
 local function tree_index_iter(scan_space, task)
-    -- iteration with GT iterator
-    local params = {iterator = 'GT', limit = task.tuples_per_iteration}
-    local last_id
-    local tuples = scan_space.index[0]:select({}, params)
-    while #tuples > 0 do
-        last_id = tuples[#tuples]
-        for _, tuple in ipairs(tuples) do
-            expiration_process(task, tuple)
-        end
-        local key = construct_key(scan_space.id, last_id)
-        tuples = scan_space.index[0]:select(key, params)
-        suspend(scan_space, task)
-    end
+    local n_processed = 0
+    for _, tuple in scan_space.index[0]:pairs({}, {iterator = 'GT'}) do
+        expiration_process(task, tuple)
 
+        n_processed = n_processed + 1
+        if n_processed % task.tuples_per_iteration == 0 then
+            suspend(scan_space, task)
+        end
+    end
 end
 
 local function hash_index_iter(scan_space, task)

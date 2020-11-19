@@ -71,7 +71,7 @@ end
 
 local function suspend_basic(scan_space, task, len)
     local delay = (task.tuples_per_iteration * task.full_scan_time)
-    delay = math.min(delay / len, constants.max_delay)
+    delay = math.min(delay / len, task.iteration_delay)
     fiber.sleep(delay)
 end
 
@@ -163,8 +163,8 @@ local function worker_loop(task)
             task.do_worker_iteration(task)
         end
 
-        -- iteration is complete, yield
-        fiber.sleep(constants.max_delay)
+        -- Full scan iteration is complete, yield
+        fiber.sleep(task.full_scan_delay)
     end
 end
 
@@ -247,6 +247,8 @@ local function create_task(name)
         is_tuple_expired      = nil,
         process_expired_tuple = nil,
         args                  = nil,
+        iteration_delay                = constants.max_delay,
+        full_scan_delay                = constants.max_delay,
         tuples_per_iteration           = constants.default_tuples_per_iteration,
         full_scan_time                 = constants.default_full_scan_time,
         vinyl_assumed_space_len        = constants.default_vinyl_assumed_space_len,
@@ -293,6 +295,8 @@ end
 --                                process_expired_tuple() as additional context
 --     * tuples_per_iteration  -- number of tuples will be checked by one iteration
 --     * full_scan_time        -- time required for full index scan (in seconds)
+--     * iteration_delay       -- max sleep time between iterations (in seconds)
+--     * full_scan_delay       -- sleep time between full scans (in seconds)
 --     * force                 -- run task even on replica
 --  }
 local function expirationd_run_task(name, space_id, is_tuple_expired, options)
@@ -378,6 +382,20 @@ local function expirationd_run_task(name, space_id, is_tuple_expired, options)
         task.do_worker_iteration = vinyl_do_worker_iteration
     else
         task.do_worker_iteration = default_do_worker_iteration
+    end
+
+    if options.iteration_delay ~= nil then
+        if type(options.iteration_delay) ~= 'number' then
+            error("invalid type of iteration_delay value")
+        end
+        task.iteration_delay = options.iteration_delay
+    end
+
+    if options.full_scan_delay ~= nil then
+        if type(options.full_scan_delay) ~= 'number' then
+            error("invalid type of full_scan_delay value")
+        end
+        task.full_scan_delay = options.full_scan_delay
     end
 
     -- put the task to table

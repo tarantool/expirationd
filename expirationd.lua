@@ -43,7 +43,9 @@ local constants = {
     -- assumed size of vinyl space (in the first iteration)
     default_vinyl_assumed_space_len = math.pow(10, 7),
     -- factor for recalculation of vinyl space size
-    default_vinyl_assumed_space_len_factor = 2
+    default_vinyl_assumed_space_len_factor = 2,
+    -- default function on full scan
+    default_on_full_scan = function(...) end
 }
 
 -- ========================================================================= --
@@ -160,7 +162,18 @@ local function worker_loop(task)
 
     while true do
         if (box.cfg.replication_source == nil and box.cfg.replication == nil) or task.force then
-            task.do_worker_iteration(task)
+            task.on_full_scan_start(task)
+            local state, err = pcall(task.do_worker_iteration, task)
+            if state then
+                task.on_full_scan_success(task)
+            else
+                task.on_full_scan_error(task, err)
+            end
+
+            task.on_full_scan_complete(task)
+            if not state then
+                error(err)
+            end
         end
 
         -- Full scan iteration is complete, yield
@@ -253,6 +266,10 @@ local function create_task(name)
         full_scan_time                 = constants.default_full_scan_time,
         vinyl_assumed_space_len        = constants.default_vinyl_assumed_space_len,
         vinyl_assumed_space_len_factor = constants.default_vinyl_assumed_space_len_factor,
+        on_full_scan_error             = constants.default_on_full_scan,
+        on_full_scan_success           = constants.default_on_full_scan,
+        on_full_scan_start             = constants.default_on_full_scan,
+        on_full_scan_complete          = constants.default_on_full_scan
     }, { __index = Task_methods })
     return task
 end
@@ -291,6 +308,10 @@ end
 --   options = {      -- (table with named options)
 --     * process_expired_tuple -- applied to expired tuples, receives
 --                                (space_id, args, tuple) as arguments
+--     * on_full_scan_start    -- call function on starting full scan iteration
+--     * on_full_scan_complete -- call function on complete full scan iteration
+--     * on_full_scan_success  -- call function on success full scan iteration
+--     * on_full_scan_error    -- call function on error full scan iteration
 --     * args                  -- passed to is_tuple_expired and
 --                                process_expired_tuple() as additional context
 --     * tuples_per_iteration  -- number of tuples will be checked by one iteration
@@ -396,6 +417,34 @@ local function expirationd_run_task(name, space_id, is_tuple_expired, options)
             error("invalid type of full_scan_delay value")
         end
         task.full_scan_delay = options.full_scan_delay
+    end
+
+    if options.on_full_scan_start ~= nil then
+        if type(options.on_full_scan_start) ~= 'function' then
+            error("invalid type of on_full_scan_start is not function")
+        end
+        task.on_full_scan_start = options.on_full_scan_start
+    end
+
+    if options.on_full_scan_success ~= nil then
+        if type(options.on_full_scan_success) ~= 'function' then
+            error("invalid type of on_full_scan_success is not function")
+        end
+        task.on_full_scan_success = options.on_full_scan_success
+    end
+
+    if options.on_full_scan_complete ~= nil then
+        if type(options.on_full_scan_complete) ~= 'function' then
+            error("invalid type of on_full_scan_complete is not function")
+        end
+        task.on_full_scan_complete = options.on_full_scan_complete
+    end
+
+    if options.on_full_scan_error ~= nil then
+        if type(options.on_full_scan_error) ~= 'function' then
+            error("invalid type of on_full_scan_error is not function")
+        end
+        task.on_full_scan_error = options.on_full_scan_error
     end
 
     -- put the task to table

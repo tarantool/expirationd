@@ -230,7 +230,10 @@ init_box()
 -- 2. errors test,
 -- 3. not expire test,
 -- 4. kill zombie test
--- 5. default drop function test
+-- 5. multiple expires test
+-- 6. default drop function test
+-- 7. restart test
+-- 8. complex key test
 -- ========================================================================= --
 test:plan(8)
 

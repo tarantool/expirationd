@@ -44,6 +44,8 @@ opt
   * `args` - passed to `is_tuple_expired()` and `process_expired_tuple()` as additional context
   * `tuples_per_iteration` - number of tuples will be checked by one iteration
   * `full_scan_time` - time required for full index scan (in seconds)
+  * `iteration_delay` - max sleep time between iterations (in seconds)
+  * `full_scan_delay` - sleep time between full scans (in seconds)
   * `force` - run, even on replica
 
 ### `expirationd.kill (name)`

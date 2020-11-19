@@ -46,6 +46,15 @@ opt
   * `full_scan_time` - time required for full index scan (in seconds)
   * `iteration_delay` - max sleep time between iterations (in seconds)
   * `full_scan_delay` - sleep time between full scans (in seconds)
+  * `on_full_scan_start` - call function on starting full scan iteration
+    Receives `(task)` as arguments.
+  * `on_full_scan_complete` - call function on complete full scan iteration.
+    Called after `on_full_scan_success` or `on_full_scan_error`.
+    Receives `(task)` as arguments.
+  * `on_full_scan_success` - call function on success full scan iteration
+    Receives `(task)` as arguments.
+  * `on_full_scan_error` - call function on error full scan iteration
+    Receives `(task, error)` as arguments.
   * `force` - run, even on replica
 
 ### `expirationd.kill (name)`

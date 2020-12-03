@@ -228,6 +228,17 @@ local function init_box()
         if_not_exists = true
     })
     truncate(g.id)
+
+    local h = box.schema.create_space('error_callback_test', {
+        engine = space_type,
+        if_not_exists = true
+    })
+    h:create_index('first', {
+        type = index_type,
+        parts = {1, 'NUM'},
+        if_not_exists = true
+    })
+    truncate(h.id)
 end
 
 local space_id = 'origin'
@@ -246,8 +257,9 @@ init_box()
 -- 7. restart test
 -- 8. complex key test
 -- 9. delays and scan callbacks test
+-- 10. error callback test
 -- ========================================================================= --
-test:plan(9)
+test:plan(10)
 
 test:test('simple expires test',  function(test)
     test:plan(4)
@@ -617,6 +629,57 @@ test:test('delays and scan callbacks test', function(test)
 
     cond:wait()
     expirationd.kill_task(task_name)
+end)
+
+test:test('error callback test', function(test)
+    test:plan(2)
+
+    -- Prepare the space.
+    local tuples_count = 1
+    local time = fiber.time()
+    local space_name = 'error_callback_test'
+    local expire_delta = 10
+
+    for i = 1, tuples_count do
+        box.space[space_name]:insert{i, time + expire_delta}
+    end
+
+    local task_name = 'error_callback_task'
+    local cond = fiber.cond()
+
+    local error_cb_called = false
+    local complete_cb_called = false
+    local err_msg = 'The error is occured'
+
+    expirationd.start(
+        task_name,
+        space_name,
+        function(args, tuple)
+            error(err_msg)
+        end,
+        {
+            args = {
+                field_no = 2
+            },
+            -- The callbacks can be called multiple times because guardian_loop
+            -- will restart the task.
+            on_full_scan_error = function(task, err)
+                if err:find(err_msg) then
+                    error_cb_called = true
+                end
+            end,
+            on_full_scan_complete = function(task)
+                complete_cb_called = true
+                cond:signal()
+            end
+        }
+    )
+
+    cond:wait()
+    expirationd.kill_task(task_name)
+
+    test:ok(error_cb_called, 'the "error" callback has been invoked')
+    test:ok(complete_cb_called, 'the "complete" callback has been invoked')
 end)
 
 os.exit(test:check() and 0 or 1)

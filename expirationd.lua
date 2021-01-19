@@ -94,9 +94,9 @@ local function tree_index_iter(scan_space, task)
         for _, tuple in ipairs(tuples) do
             expiration_process(task, tuple)
         end
+        suspend(scan_space, task)
         local key = construct_key(scan_space.id, last_id)
         tuples = scan_space.index[0]:select(key, params)
-        suspend(scan_space, task)
     end
 
 end

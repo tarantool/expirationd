@@ -23,6 +23,8 @@ env:
       - OS=fedora DIST=29
       - OS=fedora DIST=30
       - OS=fedora DIST=31
+      - OS=fedora DIST=32
+      - OS=fedora DIST=33
       - OS=ubuntu DIST=trusty
       - OS=ubuntu DIST=xenial
       - OS=ubuntu DIST=bionic
@@ -30,6 +32,7 @@ env:
       - OS=debian DIST=jessie
       - OS=debian DIST=stretch
       - OS=debian DIST=buster
+      - OS=debian DIST=bullseye
 
 script:
   - git describe --long

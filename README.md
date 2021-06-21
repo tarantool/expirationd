@@ -13,8 +13,8 @@ being deleted into some other space.
 ``` lua
 box.cfg{}
 space = box.space.old
-job_name = 'clean_all'
-expirationd = require('expirationd')
+job_name = "clean_all"
+expirationd = require("expirationd")
 function is_expired(args, tuple)
   return true
 end
@@ -31,35 +31,30 @@ expirationd.start(job_name, space.id, is_expired, {
 
 ### `expirationd.start (name, space_id, is_tuple_expired, options)`
 
-Run a named task
+Run a scheduled task to check and process (expire) tuples in a given space.
 
 * `name` - task name
 * `space_id` - space to look in for expired tuples
 * `is_tuple_expired` - a function, must accept tuple and return true/false
   (is tuple expired or not), receives `(args, tuple)` as arguments
-opt
 * `options` -- (table with named options, may be nil)
-  * `process_expired_tuple` - applied to expired tuples, receives `(space_id, args, tuple)`
-    as arguments. Can be nil: by default tuples are removed
-  * `args` - passed to `is_tuple_expired()` and `process_expired_tuple()` as additional context
-  * `tuples_per_iteration` - number of tuples will be checked by one iteration
-  * `full_scan_time` - time required for full index scan (in seconds)
-  * `iteration_delay` - max sleep time between iterations (in seconds)
-  * `full_scan_delay` - sleep time between full scans (in seconds)
-  * `on_full_scan_start` - call function on starting full scan iteration
-    Receives `(task)` as arguments.
-  * `on_full_scan_complete` - call function on complete full scan iteration.
-    Called after `on_full_scan_success` or `on_full_scan_error`.
-    Receives `(task)` as arguments.
-  * `on_full_scan_success` - call function on success full scan iteration
-    Receives `(task)` as arguments.
-  * `on_full_scan_error` - call function on error full scan iteration
-    Receives `(task, error)` as arguments.
-  * `force` - run, even on replica
+    * `process_expired_tuple` - Applied to expired tuples, receives (space_id, args, tuple) as arguments.
+     Can be nil: by default, tuples are removed.
+    * `tuples_per_iteration` - Number of tuples to check in one batch (iteration). Default is 1024.
+    * `on_full_scan_start` - Function to call before starting a tuple scan.
+    * `on_full_scan_complete` - Function to call after completing a full scan.
+    * `on_full_scan_success` - Function to call after successfully completing a full scan.
+    * `on_full_scan_error` - Function to call after terminating a full scan due to an error.
+    * `args` - Passed to is_tuple_expired and process_expired_tuple() as an additional context.
+    * `full_scan_time` - Time required for a full index scan (in seconds).
+    * `iteration_delay` - Max sleep time between batches (in seconds).
+    * `full_scan_delay` - Sleep time between full scans (in seconds).
+    * `force` - Run task even on replica.
+
 
 ### `expirationd.kill (name)`
 
-Kill an existing task with name 'name'
+Kill an existing task with name "name"
 
 * `name` - task's name
 

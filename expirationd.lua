@@ -52,6 +52,8 @@ local constants = {
     process_while = function() return true end,
     -- default iterating over the loop will go in ascending index
     iterator_type = "ALL",
+    -- default atomic_iteration is false, batch of items doesn't include in one transaction
+    atomic_iteration = false,
 }
 
 -- ========================================================================= --
@@ -99,6 +101,9 @@ local function default_do_worker_iteration(task)
     local space_len = task.vinyl_assumed_space_len
     local checked_tuples_count = 0
     local vinyl_checked_tuples_count = 0
+    if task.atomic_iteration then
+        box.begin()
+    end
     for _, tuple in task:iterate_with() do
         checked_tuples_count = checked_tuples_count + 1
         vinyl_checked_tuples_count = vinyl_checked_tuples_count + 1
@@ -106,6 +111,12 @@ local function default_do_worker_iteration(task)
         -- find out if the worker can go to sleep
         -- if the batch is full
         if checked_tuples_count >= task.tuples_per_iteration then
+            if task.atomic_iteration then
+                box.commit()
+                if task.worker_canceled then
+                    return true
+                end
+            end
             checked_tuples_count = 0
             if box.space[task.space_id].engine == "vinyl" then
                 if vinyl_checked_tuples_count > space_len then
@@ -115,7 +126,13 @@ local function default_do_worker_iteration(task)
             else
                 suspend(task)
             end
+            if task.atomic_iteration then
+                box.begin()
+            end
         end
+    end
+    if task.atomic_iteration then
+        box.commit()
     end
     if box.space[task.space_id].engine == "vinyl" then
         task.vinyl_assumed_space_len = vinyl_checked_tuples_count
@@ -127,9 +144,15 @@ local function worker_loop(task)
     fiber.name(string.format("worker of %q", task.name), { truncate = true })
 
     while true do
+        if task.worker_canceled then
+            fiber.self():cancel()
+        end
         if (box.cfg.replication_source == nil and box.cfg.replication == nil) or task.force then
             task.on_full_scan_start(task)
             local state, err = pcall(task.do_worker_iteration, task)
+            if task.worker_canceled then
+                fiber.self():cancel()
+            end
             if state then
                 task.on_full_scan_success(task)
             else
@@ -138,6 +161,7 @@ local function worker_loop(task)
 
             task.on_full_scan_complete(task)
             if not state then
+                box.rollback()
                 error(err)
             end
         end
@@ -188,7 +212,11 @@ local Task_methods = {
             self.guardian_fiber = nil
         end
         if (get_fiber_id(self.worker_fiber) ~= 0) then
-            self.worker_fiber:cancel()
+            if self.atomic_iteration then
+                self.worker_canceled = true
+            else
+                self.worker_fiber:cancel()
+            end
             while self.worker_fiber:status() ~= "dead" do
                 fiber.sleep(0.01)
             end
@@ -229,6 +257,7 @@ local function create_task(name)
         args                  = nil,
         index                 = nil,
         iterate_with          = nil,
+        worker_canceled       = false,
         iteration_delay                = constants.max_delay,
         full_scan_delay                = constants.max_delay,
         tuples_per_iteration           = constants.default_tuples_per_iteration,
@@ -242,6 +271,7 @@ local function create_task(name)
         start_key                      = constants.start_key,
         process_while                  = constants.process_while,
         iterator_type                  = constants.iterator_type,
+        atomic_iteration               = constants.atomic_iteration,
     }, { __index = Task_methods })
     return task
 end
@@ -303,6 +333,8 @@ end
 --                                or a function which returns such value;
 --                                if omitted or nil, all tuples will be checked.
 --     * tuples_per_iteration  -- Number of tuples to check in one batch (iteration); default is 1024.
+--     * atomic_iteration      -- Boolean, false (default) to process each tuple as a single transaction;
+--                                true to process tuples from each batch in a single transaction.
 --     * process_while         -- Function to call before checking each tuple;
 --                                if it returns false, the task will stop until next full scan.
 --     * iterate_with          -- Function which returns an iterator object which provides tuples to check,
@@ -400,6 +432,14 @@ local function expirationd_run_task(name, space_id, is_tuple_expired, options)
             error("Invalid type of process_while, expected function")
         end
         task.process_while = options.process_while
+    end
+
+    -- check transaction option
+    if options.atomic_iteration ~= nil then
+        if type(options.atomic_iteration) ~= "boolean" then
+            error("Invalid type of atomic_iteration, expected boolean")
+        end
+        task.atomic_iteration = options.atomic_iteration
     end
 
     -- check iterate_with

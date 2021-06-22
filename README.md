@@ -50,6 +50,8 @@ Run a scheduled task to check and process (expire) tuples in a given space.
      The index value may be a single value, if the index consists of one field, a tuple with the index key parts, or a function which returns such value.
      If omitted or nil, all tuples will be checked.
     * `tuples_per_iteration` - Number of tuples to check in one batch (iteration). Default is 1024.
+    * `atomic_iteration` - Boolean, false (default) to process each tuple as a single transaction.
+     True to process tuples from each batch in a single transaction.
     * `process_while` - Function to call before checking each tuple.
      If it returns false, the current tuple scan task finishes.
     * `iterate_with` - Function which returns an iterator object which provides tuples to check, considering the start_key, process_while and other options.

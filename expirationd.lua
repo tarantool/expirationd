@@ -74,7 +74,7 @@ local function expiration_process(task, tuple)
 end
 
 -- yield for some time
-local function suspend_basic(scan_space, task, len)
+local function suspend_basic(task, len)
     local delay = (task.tuples_per_iteration * task.full_scan_time)
     delay = math.min(delay / len, task.iteration_delay)
     fiber.sleep(delay)
@@ -84,80 +84,37 @@ local function suspend(scan_space, task)
     -- Return the number of tuples in the space
     local space_len = scan_space:len()
     if space_len > 0 then
-        suspend_basic(scan_space, task, space_len)
-    end
-end
-
-local function tree_index_iter(scan_space, task)
-    -- iteration with GT iterator
-    local params = {iterator = "GT", limit = task.tuples_per_iteration}
-    local last_id
-    local tuples = scan_space.index[0]:select({}, params)
-    while #tuples > 0 do
-        last_id = tuples[#tuples]
-        for _, tuple in ipairs(tuples) do
-            expiration_process(task, tuple)
-        end
-        suspend(scan_space, task)
-        local key = construct_key(scan_space.id, last_id)
-        tuples = scan_space.index[0]:select(key, params)
-    end
-
-end
-
-local function hash_index_iter(scan_space, task)
-    -- iteration for hash index
-    local checked_tuples_count = 0
-    for _, tuple in scan_space.index[0]:pairs(nil, {iterator = box.index.ALL}) do
-        checked_tuples_count = checked_tuples_count + 1
-        expiration_process(task, tuple)
-        -- find out if the worker can go to sleep
-        if checked_tuples_count >= task.tuples_per_iteration then
-            checked_tuples_count = 0
-            suspend(scan_space, task)
-        end
+        suspend_basic(task, space_len)
     end
 end
 
 local function default_do_worker_iteration(task)
-    local scan_space = box.space[task.space_id]
-    local index_type = scan_space.index[0].type
-
     -- full index scan loop
-    if index_type == "HASH" then
-        hash_index_iter(scan_space, task)
-    else
-        tree_index_iter(scan_space, task)
-    end
-end
-
-local function vinyl_do_worker_iteration(task)
     local scan_space = box.space[task.space_id]
-
-    local checked_tuples_count = 0
     local space_len = task.vinyl_assumed_space_len
-
-    local params = {iterator = "GT", limit = task.tuples_per_iteration}
-    local tuples = scan_space.index[0]:select({}, params)
-    while true do
-        local tuple_cnt = #tuples
-        if tuple_cnt == 0 then
-            break
+    local checked_tuples_count = 0
+    local vinyl_checked_tuples_count = 0
+    for _, tuple in scan_space.index[0]:pairs(nil, {iterator = box.index.ALL}) do
+        checked_tuples_count = checked_tuples_count + 1
+        vinyl_checked_tuples_count = vinyl_checked_tuples_count + 1
+        expiration_process(task, tuple)
+        -- find out if the worker can go to sleep
+        -- if the batch is full
+        if checked_tuples_count >= task.tuples_per_iteration then
+            checked_tuples_count = 0
+            if scan_space.engine == "vinyl" then
+                if vinyl_checked_tuples_count > space_len then
+                    space_len = task.vinyl_assumed_space_len_factor * space_len
+                end
+                suspend_basic(task, space_len)
+            else
+                suspend(scan_space, task)
+            end
         end
-        local last_id = nil
-        for _, tuple in ipairs(tuples) do
-            last_id = tuple
-            expiration_process(task, tuple)
-        end
-        checked_tuples_count = checked_tuples_count + tuple_cnt
-        if checked_tuples_count > space_len then
-            space_len = task.vinyl_assumed_space_len_factor * space_len
-        end
-        local key = construct_key(scan_space.id, last_id)
-        suspend_basic(scan_space, task, space_len)
-        tuples = scan_space.index[0]:select(key, params)
     end
-    task.vinyl_assumed_space_len = checked_tuples_count
+    if scan_space.engine == "vinyl" then
+        task.vinyl_assumed_space_len = vinyl_checked_tuples_count
+    end
 end
 
 local function worker_loop(task)
@@ -405,11 +362,7 @@ local function expirationd_run_task(name, space_id, is_tuple_expired, options)
         task.vinyl_assumed_space_len_factor = options.vinyl_assumed_space_len_factor
     end
 
-    if box.space[task.space_id].engine == "vinyl" then
-        task.do_worker_iteration = vinyl_do_worker_iteration
-    else
-        task.do_worker_iteration = default_do_worker_iteration
-    end
+    task.do_worker_iteration = default_do_worker_iteration
 
     if options.iteration_delay ~= nil then
         if type(options.iteration_delay) ~= "number" then

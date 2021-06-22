@@ -69,7 +69,7 @@ local function expiration_process(task, tuple)
     task.checked_tuples_count = task.checked_tuples_count + 1
     if task.is_tuple_expired(task.args, tuple) then
         task.expired_tuples_count = task.expired_tuples_count + 1
-        task.process_expired_tuple(task.space_id, task.args, tuple)
+        task.process_expired_tuple(task.space_id, task.args, tuple, task)
     end
 end
 
@@ -80,9 +80,9 @@ local function suspend_basic(task, len)
     fiber.sleep(delay)
 end
 
-local function suspend(scan_space, task)
+local function suspend(task)
     -- Return the number of tuples in the space
-    local space_len = scan_space:len()
+    local space_len = task.index:len()
     if space_len > 0 then
         suspend_basic(task, space_len)
     end
@@ -90,11 +90,10 @@ end
 
 local function default_do_worker_iteration(task)
     -- full index scan loop
-    local scan_space = box.space[task.space_id]
     local space_len = task.vinyl_assumed_space_len
     local checked_tuples_count = 0
     local vinyl_checked_tuples_count = 0
-    for _, tuple in scan_space.index[0]:pairs(nil, {iterator = box.index.ALL}) do
+    for _, tuple in task.index:pairs(nil, {iterator = box.index.ALL}) do
         checked_tuples_count = checked_tuples_count + 1
         vinyl_checked_tuples_count = vinyl_checked_tuples_count + 1
         expiration_process(task, tuple)
@@ -102,17 +101,17 @@ local function default_do_worker_iteration(task)
         -- if the batch is full
         if checked_tuples_count >= task.tuples_per_iteration then
             checked_tuples_count = 0
-            if scan_space.engine == "vinyl" then
+            if box.space[task.space_id].engine == "vinyl" then
                 if vinyl_checked_tuples_count > space_len then
                     space_len = task.vinyl_assumed_space_len_factor * space_len
                 end
                 suspend_basic(task, space_len)
             else
-                suspend(scan_space, task)
+                suspend(task)
             end
         end
     end
-    if scan_space.engine == "vinyl" then
+    if box.space[task.space_id].engine == "vinyl" then
         task.vinyl_assumed_space_len = vinyl_checked_tuples_count
     end
 end
@@ -222,6 +221,7 @@ local function create_task(name)
         is_tuple_expired      = nil,
         process_expired_tuple = nil,
         args                  = nil,
+        index                 = nil,
         iteration_delay                = constants.max_delay,
         full_scan_delay                = constants.max_delay,
         tuples_per_iteration           = constants.default_tuples_per_iteration,
@@ -271,6 +271,9 @@ end
 --   options = {      -- (table with named options)
 --     * process_expired_tuple -- Applied to expired tuples, receives (space_id, args, tuple) as arguments;
 --                                can be nil: by default, tuples are removed.
+--     * index                 -- Name or id of the index to iterate on; if omitted, will use the primary index;
+--                                if there's no index with this name, will throw an error.
+--                                supported index types are TREE and HASH, using other types will result in an error.
 --     * on_full_scan_start    -- Function to call before starting a full scan iteration.
 --     * on_full_scan_complete -- Function to call after completing a full scan iteration.
 --     * on_full_scan_success  -- Function to call after successfully completing a full scan iteration.
@@ -321,6 +324,25 @@ local function expirationd_run_task(name, space_id, is_tuple_expired, options)
         error("process_expired_tuple is not defined, please provide a purge function")
     end
     task.process_expired_tuple = options.process_expired_tuple or default_tuple_drop
+
+    -- validate index
+    local expire_index = box.space[space_id].index[0]
+    if options.index then
+        if box.space[space_id].index[options.index] == nil then
+            if type(options.index) == "string" then
+                error("Index with name " .. options.index .. " does not exist")
+            elseif type(options.index) == "number" then
+                error("Index with id " .. options.index .. " does not exist")
+            else
+                error("Invalid type of index, expected string or number")
+            end
+        end
+        expire_index = box.space[space_id].index[options.index]
+        if expire_index.type ~= "TREE" and expire_index.type ~= "HASH" then
+            error("Not supported index type, expected TREE or HASH")
+        end
+    end
+    task.index = expire_index
 
     -- check expire and process after expiration handler's arguments
     task.args = options.args

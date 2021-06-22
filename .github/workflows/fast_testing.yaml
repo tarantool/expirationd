@@ -35,4 +35,16 @@ jobs:
       - name: Clone the module
         uses: actions/checkout@v2
 
+      - name: Cache rocks
+        uses: actions/cache@v2
+        id: cache-rocks
+        with:
+          path: .rocks/
+          key: cache-rocks-${{ matrix.tarantool }}-01
+
+      - name: Install requirements
+        run: |
+          tarantoolctl rocks install luatest 0.5.0
+        if: steps.cache-rocks.outputs.cache-hit != 'true'
+
       - run: make test

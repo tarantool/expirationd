@@ -40,6 +40,9 @@ Run a scheduled task to check and process (expire) tuples in a given space.
 * `options` -- (table with named options, may be nil)
     * `process_expired_tuple` - Applied to expired tuples, receives (space_id, args, tuple) as arguments.
      Can be nil: by default, tuples are removed.
+    * `index` - Name or id of the index to iterate on. If omitted, will use the primary index.
+     If there's no index with this name, will throw an error.
+     Supported index types are TREE and HASH, using other types will result in an error.
     * `tuples_per_iteration` - Number of tuples to check in one batch (iteration). Default is 1024.
     * `on_full_scan_start` - Function to call before starting a tuple scan.
     * `on_full_scan_complete` - Function to call after completing a full scan.

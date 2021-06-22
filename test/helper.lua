@@ -9,6 +9,7 @@ t.before_suite(function()
         wal_dir    = t.datadir,
         memtx_dir  = t.datadir,
         vinyl_dir  = t.datadir,
+        vinyl_memory = 1024,
     }
 
     local tree = box.schema.create_space("tree", { if_not_exists = true })

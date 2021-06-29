@@ -48,6 +48,8 @@ local constants = {
     default_on_full_scan = function() end,
     -- default function for start_key
     start_key = function() return nil end,
+    -- default function for process_while
+    process_while = function() return true end,
     -- default iterating over the loop will go in ascending index
     iterator_type = "ALL",
 }
@@ -97,7 +99,7 @@ local function default_do_worker_iteration(task)
     local space_len = task.vinyl_assumed_space_len
     local checked_tuples_count = 0
     local vinyl_checked_tuples_count = 0
-    for _, tuple in task.index:pairs(task.start_key(), {iterator = task.iterator_type}) do
+    for _, tuple in task:iterate_with() do
         checked_tuples_count = checked_tuples_count + 1
         vinyl_checked_tuples_count = vinyl_checked_tuples_count + 1
         expiration_process(task, tuple)
@@ -226,6 +228,7 @@ local function create_task(name)
         process_expired_tuple = nil,
         args                  = nil,
         index                 = nil,
+        iterate_with          = nil,
         iteration_delay                = constants.max_delay,
         full_scan_delay                = constants.max_delay,
         tuples_per_iteration           = constants.default_tuples_per_iteration,
@@ -237,6 +240,7 @@ local function create_task(name)
         on_full_scan_start             = constants.default_on_full_scan,
         on_full_scan_complete          = constants.default_on_full_scan,
         start_key                      = constants.start_key,
+        process_while                  = constants.process_while,
         iterator_type                  = constants.iterator_type,
     }, { __index = Task_methods })
     return task
@@ -261,6 +265,16 @@ local function default_tuple_drop(space_id, args, tuple)
     box.space[space_id]:delete(construct_key(space_id, tuple))
 end
 
+
+-- default iterate_with function
+local function default_iterate_with(task)
+    return task.index:pairs(task.start_key(), { iterator = task.iterator_type })
+       :take_while(
+            function()
+                return task:process_while()
+            end
+        )
+end
 
 -- ========================================================================= --
 -- Expiration daemon management functions
@@ -289,6 +303,11 @@ end
 --                                or a function which returns such value;
 --                                if omitted or nil, all tuples will be checked.
 --     * tuples_per_iteration  -- Number of tuples to check in one batch (iteration); default is 1024.
+--     * process_while         -- Function to call before checking each tuple;
+--                                if it returns false, the task will stop until next full scan.
+--     * iterate_with          -- Function which returns an iterator object which provides tuples to check,
+--                                considering the start_key, process_while and other options.
+--                                There's a default function which can be overriden with this parameter.
 --     * on_full_scan_start    -- Function to call before starting a full scan iteration.
 --     * on_full_scan_complete -- Function to call after completing a full scan iteration.
 --     * on_full_scan_success  -- Function to call after successfully completing a full scan iteration.
@@ -374,6 +393,22 @@ local function expirationd_run_task(name, space_id, is_tuple_expired, options)
 
     -- check valid of iterator_type and start key
     task.index:pairs( task.start_key(), { iterator = task.iterator_type })
+
+    -- check process_while
+    if options.process_while ~= nil then
+        if type(options.process_while) ~= "function" then
+            error("Invalid type of process_while, expected function")
+        end
+        task.process_while = options.process_while
+    end
+
+    -- check iterate_with
+    if options.iterate_with ~= nil then
+        if type(options.iterate_with) ~= "function" then
+            error("Invalid type of iterate_with, expected function")
+        end
+    end
+    task.iterate_with = options.iterate_with or default_iterate_with
 
     -- check expire and process after expiration handler's arguments
     task.args = options.args

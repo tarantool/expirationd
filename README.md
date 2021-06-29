@@ -43,6 +43,12 @@ Run a scheduled task to check and process (expire) tuples in a given space.
     * `index` - Name or id of the index to iterate on. If omitted, will use the primary index.
      If there's no index with this name, will throw an error.
      Supported index types are TREE and HASH, using other types will result in an error.
+    * `iterator_type` - Type of the iterator to use, as string or box.index constant, for example, "EQ" or box.index.EQ.
+     Default is box.index.ALL.
+     See https://www.tarantool.io/en/doc/latest/reference/reference_lua/box_index/pairs/.
+    * `start_key` - Start iterating from the tuple with this index value. If the iterator is "EQ", iterate over tuples with this index value.
+     The index value may be a single value, if the index consists of one field, a tuple with the index key parts, or a function which returns such value.
+     If omitted or nil, all tuples will be checked.
     * `tuples_per_iteration` - Number of tuples to check in one batch (iteration). Default is 1024.
     * `on_full_scan_start` - Function to call before starting a tuple scan.
     * `on_full_scan_complete` - Function to call after completing a full scan.

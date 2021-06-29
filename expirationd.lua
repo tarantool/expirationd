@@ -46,6 +46,10 @@ local constants = {
     default_vinyl_assumed_space_len_factor = 2,
     -- default function on full scan
     default_on_full_scan = function() end,
+    -- default function for start_key
+    start_key = function() return nil end,
+    -- default iterating over the loop will go in ascending index
+    iterator_type = "ALL",
 }
 
 -- ========================================================================= --
@@ -93,7 +97,7 @@ local function default_do_worker_iteration(task)
     local space_len = task.vinyl_assumed_space_len
     local checked_tuples_count = 0
     local vinyl_checked_tuples_count = 0
-    for _, tuple in task.index:pairs(nil, {iterator = box.index.ALL}) do
+    for _, tuple in task.index:pairs(task.start_key(), {iterator = task.iterator_type}) do
         checked_tuples_count = checked_tuples_count + 1
         vinyl_checked_tuples_count = vinyl_checked_tuples_count + 1
         expiration_process(task, tuple)
@@ -232,6 +236,8 @@ local function create_task(name)
         on_full_scan_success           = constants.default_on_full_scan,
         on_full_scan_start             = constants.default_on_full_scan,
         on_full_scan_complete          = constants.default_on_full_scan,
+        start_key                      = constants.start_key,
+        iterator_type                  = constants.iterator_type,
     }, { __index = Task_methods })
     return task
 end
@@ -274,13 +280,21 @@ end
 --     * index                 -- Name or id of the index to iterate on; if omitted, will use the primary index;
 --                                if there's no index with this name, will throw an error.
 --                                supported index types are TREE and HASH, using other types will result in an error.
+--     * iterator_type         -- Type of the iterator to use, as string or box.index constant,
+--                                for example, 'EQ' or box.index.EQ; default is box.index.ALL;
+--                                see https://www.tarantool.io/en/doc/latest/reference/reference_lua/box_index/pairs/.
+--     * start_key             -- Start iterating from the tuple with this index value;
+--                                or when iterator is 'EQ', iterate over tuples with this index value;
+--                                must be a value of the same data type as the index field or fields,
+--                                or a function which returns such value;
+--                                if omitted or nil, all tuples will be checked.
+--     * tuples_per_iteration  -- Number of tuples to check in one batch (iteration); default is 1024.
 --     * on_full_scan_start    -- Function to call before starting a full scan iteration.
 --     * on_full_scan_complete -- Function to call after completing a full scan iteration.
 --     * on_full_scan_success  -- Function to call after successfully completing a full scan iteration.
 --     * on_full_scan_error    -- Function to call after terminating a full scan due to an error.
 --     * args                  -- Passed to is_tuple_expired and
 --                                process_expired_tuple() as additional context.
---     * tuples_per_iteration  -- Number of tuples to check in one batch (iteration); default is 1024.
 --     * full_scan_time        -- Time required for a full index scan (in seconds).
 --     * iteration_delay       -- Max sleep time between iterations (in seconds).
 --     * full_scan_delay       -- Sleep time between full scans (in seconds).
@@ -343,6 +357,23 @@ local function expirationd_run_task(name, space_id, is_tuple_expired, options)
         end
     end
     task.index = expire_index
+
+    -- check iterator_type
+    if options.iterator_type ~= nil then
+        task.iterator_type = options.iterator_type
+    end
+
+    -- check start_key
+    if options.start_key ~= nil or options.start_key == box.NULL then
+        if type(options.start_key) == "function" then
+            task.start_key = function() return options.start_key() end
+        else
+            task.start_key = function() return options.start_key end
+        end
+    end
+
+    -- check valid of iterator_type and start key
+    task.index:pairs( task.start_key(), { iterator = task.iterator_type })
 
     -- check expire and process after expiration handler's arguments
     task.args = options.args

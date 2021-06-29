@@ -50,6 +50,10 @@ Run a scheduled task to check and process (expire) tuples in a given space.
      The index value may be a single value, if the index consists of one field, a tuple with the index key parts, or a function which returns such value.
      If omitted or nil, all tuples will be checked.
     * `tuples_per_iteration` - Number of tuples to check in one batch (iteration). Default is 1024.
+    * `process_while` - Function to call before checking each tuple.
+     If it returns false, the current tuple scan task finishes.
+    * `iterate_with` - Function which returns an iterator object which provides tuples to check, considering the start_key, process_while and other options.
+     There's a default function which can be overriden with this parameter.
     * `on_full_scan_start` - Function to call before starting a tuple scan.
     * `on_full_scan_complete` - Function to call after completing a full scan.
     * `on_full_scan_success` - Function to call after successfully completing a full scan.

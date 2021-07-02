@@ -9,8 +9,10 @@ tuple and performs the expiry itself: either deletes it (memcache), or
 does something smarter, like put a smaller representation of the data
 being deleted into some other space.
 
-### Example
-``` lua
+### Examples
+
+Simple version:
+```lua
 box.cfg{}
 space = box.space.old
 job_name = "clean_all"
@@ -24,6 +26,44 @@ end
 expirationd.start(job_name, space.id, is_expired, {
     process_expired_tuple = delete_tuple, args = nil,
     tuples_per_iteration = 50, full_scan_time = 3600
+})
+```
+
+Сustomized version:
+```lua
+expirationd.start(job_name, space.id, is_expired, {
+    -- name or id of the index in the specified space to iterate over
+    index = "exp",
+    -- one transaction per batch
+    -- default is false
+    atomic_iteration = true,
+    -- delete data that was added a year ago
+    -- default is nil
+    start_key = function( task )
+        return clock.time() - (365*24*60*60)
+    end,
+    -- delete it from the oldest to the newest
+    -- default is ALL
+    iterator_type = "GE",
+    -- stop full_scan if delete a lot
+    -- returns true by default
+    process_while = function( task )
+        if task.args.max_expired_tuples >= task.expired_tuples_count then
+            task.expired_tuples_count = 0
+            return false
+        end
+        return true
+    end,
+    -- this function must return an iterator over the tuples
+    iterate_with = function( task )
+        return task.expire_index:pairs({ task.start_key() }, { iterator = task.iterator })
+            :take_while( function( tuple )
+                return task:process_while()
+            end )
+    end,
+    args = {
+        max_expired_tuples = 1000
+    }
 })
 ```
 
@@ -112,4 +152,4 @@ Get statistics of task
 
 ## Testing
 
-Simply start `tarantool test.lua`
+Simply start `make test`

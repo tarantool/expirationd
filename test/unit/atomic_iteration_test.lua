@@ -36,7 +36,7 @@ function g.test_memtx()
     local function f(iterator)
         local transaction = {}
         -- old / new_tuple is not passed for vinyl
-        for request_number, old_tuple, new_tuple, space_id in iterator() do
+        for _, old_tuple in iterator() do
             table.insert(transaction, old_tuple:totable())
         end
         table.insert(transactions, transaction)

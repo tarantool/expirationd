@@ -291,6 +291,7 @@ local function get_task(name)
 end
 
 -- default process_expired_tuple function
+-- luacheck: ignore unused args
 local function default_tuple_drop(space_id, args, tuple)
     box.space[space_id]:delete(construct_key(space_id, tuple))
 end
@@ -583,8 +584,8 @@ local function expirationd_task_stats(name)
         return get_task(name):statistics()
     end
     local retval = {}
-    for name, task in pairs(task_list) do
-        retval[name] = task:statistics()
+    for task_name, task in pairs(task_list) do
+        retval[task_name] = task:statistics()
     end
     return retval
 end
@@ -604,14 +605,14 @@ local function expirationd_update()
     local expd_prev = require("expirationd")
     table.clear(expd_prev)
     setmetatable(expd_prev, {
-        __index = function(name)
+        __index = function()
             error("Wait until update is done before using expirationd", 2)
         end
     })
     package.loaded["expirationd"] = nil
     local expd_new  = require("expirationd")
     local tmp_task_list = task_list; task_list = {}
-    for name, task in pairs(tmp_task_list) do
+    for _, task in pairs(tmp_task_list) do
         task:kill()
         expd_new.start(
             task.name, task.space_id,

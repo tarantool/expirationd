@@ -1,6 +1,11 @@
 all:
 	@echo "Only tests are available: make test"
 
+check: luacheck
+
+luacheck:
+	.rocks/bin/luacheck --config .luacheckrc --codes .
+
 .PHONY: test
 test:
 	.rocks/bin/luatest -v

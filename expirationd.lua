@@ -272,6 +272,7 @@ local function create_task(name)
         process_while                  = constants.process_while,
         iterator_type                  = constants.iterator_type,
         atomic_iteration               = constants.atomic_iteration,
+        force                          = constants.force
     }, { __index = Task_methods })
     return task
 end

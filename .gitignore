@@ -4,3 +4,5 @@
 sophia
 *.log
 VERSION
+**/.rocks
+**/.idea

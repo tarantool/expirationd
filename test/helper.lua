@@ -1,7 +1,7 @@
 local t = require("luatest")
 local fio = require("fio")
 
-local helpers = require("luatest.helpers")
+local helpers = require("cartridge.test-helpers")
 
 t.before_suite(function()
     t.datadir = fio.tempdir()
@@ -107,6 +107,20 @@ helpers.iteration_result = {}
 function helpers.is_expired_debug(_, tuple)
     table.insert(helpers.iteration_result, tuple)
     return true
+end
+
+helpers.project_root = fio.dirname(debug.sourcedir())
+
+function helpers.entrypoint(name)
+    local path = fio.pathjoin(
+            helpers.project_root,
+            "test", "entrypoint",
+            string.format("%s.lua", name)
+    )
+    if not fio.path.exists(path) then
+        error(path .. ": no such entrypoint", 2)
+    end
+    return path
 end
 
 return helpers

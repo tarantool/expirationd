@@ -102,6 +102,11 @@ local function default_do_worker_iteration(task)
     local checked_tuples_count = 0
     local vinyl_checked_tuples_count = 0
     if task.atomic_iteration then
+        -- Check before starting the transaction,
+        -- since a transaction can be long.
+        if task.worker_cancelled then
+            return true
+        end
         box.begin()
     end
     for _, tuple in task:iterate_with() do
@@ -113,6 +118,7 @@ local function default_do_worker_iteration(task)
         if checked_tuples_count >= task.tuples_per_iteration then
             if task.atomic_iteration then
                 box.commit()
+                -- The suspend functions can be long.
                 if task.worker_cancelled then
                     return true
                 end
@@ -127,6 +133,11 @@ local function default_do_worker_iteration(task)
                 suspend(task)
             end
             if task.atomic_iteration then
+                -- Check before starting the transaction,
+                -- since a transaction can be long.
+                if task.worker_cancelled then
+                    return true
+                end
                 box.begin()
             end
         end
@@ -144,12 +155,12 @@ local function worker_loop(task)
     fiber.name(string.format("worker of %q", task.name), { truncate = true })
 
     while true do
-        if task.worker_cancelled then
-            fiber.self():cancel()
-        end
         if (box.cfg.replication_source == nil and box.cfg.replication == nil) or task.force then
             task.on_full_scan_start(task)
             local state, err = pcall(task.do_worker_iteration, task)
+            -- Following functions are on_full_scan*,
+            -- but we probably did not complete the full scan,
+            -- so we should check for cancellation here.
             if task.worker_cancelled then
                 fiber.self():cancel()
             end
@@ -166,6 +177,12 @@ local function worker_loop(task)
             end
         end
 
+        -- If we do not check the fiber for cancellation,
+        -- then the fiber may fall asleep for a long time, depending on `full_scan_delay`.
+        -- And a fiber that wants to stop this task can also freeze, a kind of deadlock.
+        if task.worker_cancelled then
+            fiber.self():cancel()
+        end
         -- Full scan iteration is complete, yield
         fiber.sleep(task.full_scan_delay)
     end
@@ -212,9 +229,8 @@ local Task_methods = {
             self.guardian_fiber = nil
         end
         if (get_fiber_id(self.worker_fiber) ~= 0) then
-            if self.atomic_iteration then
-                self.worker_cancelled = true
-            else
+            self.worker_cancelled = true
+            if not self.atomic_iteration then
                 self.worker_fiber:cancel()
             end
             while self.worker_fiber:status() ~= "dead" do

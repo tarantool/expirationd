@@ -9,6 +9,23 @@ tuple and performs the expiry itself: either deletes it (memcache), or
 does something smarter, like put a smaller representation of the data
 being deleted into some other space.
 
+There are a number of similar modules:
+- [moonwalker](https://github.com/tarantool/moonwalker) triggered manually,
+useful for batch transactions, a performance about 600/700k rec/sec
+- [expirationd](https://github.com/tarantool/expirationd/issues/53) always
+expires tuples without using indices but using any condition, without guarantee
+for time expiration.
+- [indexpirationd](https://github.com/moonlibs/indexpiration) always expires
+tuples with indices, has a nice precision (up to ms) for time to expire.
+
+Table below may help you to choose a proper module for your requirements:
+
+| Module        | Reaction time | Uses indices | Arbitrary condition | Expiration trigger                 |
+|---------------|---------------|--------------|---------------------|------------------------------------|
+| indexpiration | High (ms)     | Yes          | No                  | synchronous (fiber with condition) |
+| expirationd   | Medium (sec)  | No           | Yes                 | synchronous (fiber with condition) |
+| moonwalker    | NA            | No           | Yes                 | asynchronous (using crontab etc)   |
+
 ### Examples
 
 Simple version:

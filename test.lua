@@ -276,14 +276,16 @@ test:test('simple expires test',  function(test)
     print_test_tuples(archive_space_id)
 
     log.info("-------------- run ------------")
-    expirationd.run_task(
+    expirationd.start(
         "test",
         space_id,
         check_tuple_expire_by_timestamp,
-        put_tuple_to_archive,
         {
-            field_no = 3,
-            archive_space_id = archive_space_id
+            process_expired_tuple = put_tuple_to_archive,
+            args = {
+                field_no = 3,
+                archive_space_id = archive_space_id
+            },
         }
     )
 
@@ -302,9 +304,9 @@ test:test('simple expires test',  function(test)
     log.info("after print archive space " .. prefix_space_id(archive_space_id), "\n")
     print_test_tuples(archive_space_id)
 
-    expirationd.show_task_list(true)
+    expirationd.tasks(true)
 
-    local task = expirationd.get_task("test")
+    local task = expirationd.task("test")
     test:is(task.start_time, start_time, 'checking start time')
     test:is(task.name, "test", 'checking task name')
     local restarts = 5
@@ -313,35 +315,39 @@ test:test('simple expires test',  function(test)
     end
     test:is(task.restarts, restarts, 'checking restart count')
     test:is(task.expired_tuples_count, 7, 'Test task executed and moved to archive')
-    expirationd.kill_task("test")
+    expirationd.kill("test")
 end)
 
 test:test("execution error test", function (test)
     test:plan(2)
-    expirationd.run_task(
+    expirationd.start(
         "test",
         space_id,
         check_tuple_expire_by_timestamp_error,
-        put_tuple_to_archive,
         {
-            field_no = 3,
-            archive_space_id = archive_space_id
+            process_expired_tuple = put_tuple_to_archive,
+            args = {
+                field_no = 3,
+                archive_space_id = archive_space_id,
+            },
         }
     )
-    test:is(expirationd.get_task("test").restarts, 1, 'checking restart count')
+    test:is(expirationd.task("test").restarts, 1, 'checking restart count')
 
-    expirationd.run_task("test",
-         space_id,
-         check_tuple_expire_by_timestamp,
-         put_tuple_to_archive_error,
-         {
-             field_no = 3,
-             archive_space_id = archive_space_id
-         }
+    expirationd.start("test",
+        space_id,
+        check_tuple_expire_by_timestamp,
+        {
+            process_expired_tuple = put_tuple_to_archive_error,
+            args = {
+                field_no = 3,
+                archive_space_id = archive_space_id,
+            },
+        }
     )
-    local task = expirationd.get_task("test")
+    local task = expirationd.task("test")
     test:is(task.restarts, 1, 'Error task executed')
-    expirationd.kill_task("test")
+    expirationd.kill("test")
 end)
 
 test:test("not expired task",  function(test)
@@ -355,23 +361,25 @@ test:test("not expired task",  function(test)
         add_entry(space_id, i, get_email(i), time + 2)
     end
 
-    expirationd.run_task(
+    expirationd.start(
         "test",
-         space_id,
-         check_tuple_expire_by_timestamp,
-         put_tuple_to_archive,
-         {
-             field_no = 3,
-             archive_space_id = archive_space_id
-         }
+        space_id,
+        check_tuple_expire_by_timestamp,
+        {
+            process_expired_tuple = put_tuple_to_archive,
+            args = {
+                field_no = 3,
+                archive_space_id = archive_space_id,
+            },
+        }
     )
-    local task = expirationd.get_task("test")
+    local task = expirationd.task("test")
     -- after run tuples is not expired
     test:is(task.expired_tuples_count, 0, 'checking expired tuples empty')
     -- wait 3 seconds and check: all tuples must be expired
     fiber.sleep(3)
     test:is(task.expired_tuples_count, tuples_count, 'checking expired tuples count')
-    expirationd.kill_task("test")
+    expirationd.kill("test")
 end)
 
 test:test("zombie task kill", function(test)
@@ -382,35 +390,39 @@ test:test("zombie task kill", function(test)
         add_entry(space_id, i, get_email(i), time + i * 5)
     end
     -- first run
-    expirationd.run_task(
+    expirationd.start(
         "test",
-         space_id,
-         check_tuple_expire_by_timestamp,
-         put_tuple_to_archive,
-         {
-             field_no = 3,
-             archive_space_id = archive_space_id
-         }
+        space_id,
+        check_tuple_expire_by_timestamp,
+        {
+            process_expired_tuple = put_tuple_to_archive,
+            args = {
+                field_no = 3,
+                archive_space_id = archive_space_id,
+            },
+        }
     )
-    local fiber_obj = expirationd.get_task("test").guardian_fiber
+    local fiber_obj = expirationd.task("test").guardian_fiber
     test:is(fiber_obj:status(), 'suspended', 'checking status of fiber')
     -- run again and check - it must kill first task
-    expirationd.run_task(
+    expirationd.start(
         "test",
-         space_id,
-         check_tuple_expire_by_timestamp,
-         put_tuple_to_archive,
-         {
-             field_no = 3,
-             archive_space_id = archive_space_id
-         }
+        space_id,
+        check_tuple_expire_by_timestamp,
+        {
+            process_expired_tuple = put_tuple_to_archive,
+            args = {
+                field_no = 3,
+                archive_space_id = archive_space_id,
+            },
+        }
     )
-    local task = expirationd.get_task("test")
+    local task = expirationd.task("test")
     test:is(task.restarts, 1, 'checking restart count')
     -- check is first fiber killed
     test:is(task.guardian_fiber:status(), "suspended", 'checking status of fiber')
     test:is(fiber_obj:status(), 'dead', "Zombie task was killed and restarted")
-    expirationd.kill_task("test")
+    expirationd.kill("test")
 end)
 
 test:test("multiple expires test", function(test)
@@ -425,29 +437,31 @@ test:test("multiple expires test", function(test)
         box.space[space_name]:insert{i, get_email(i), time + expire_delta}
     end
 
-    expirationd.run_task(
+    expirationd.start(
         "test",
-         space_name,
-         check_tuple_expire_by_timestamp,
-         put_tuple_to_archive,
-         {
-             field_no = 3,
-             archive_space_id = archive_space_id
-         },
-         5,
-         1
+        space_name,
+        check_tuple_expire_by_timestamp,
+        {
+            process_expired_tuple = put_tuple_to_archive,
+            args = {
+                field_no = 3,
+                archive_space_id = archive_space_id,
+            },
+            tuples_per_iteration = 5,
+            full_scan_time = 1,
+        }
     )
     -- test first expire part
     fiber.sleep(1 + expire_delta)
-    local task = expirationd.get_task("test")
+    local task = expirationd.task("test")
     local cnt = task.expired_tuples_count
     test:ok(cnt < tuples_count and cnt > 0, 'First part expires done')
 
     -- test second expire part
     fiber.sleep(1)
-    test:is(expirationd.get_task("test").expired_tuples_count,
+    test:is(expirationd.task("test").expired_tuples_count,
             tuples_count, 'Multiple expires done')
-    expirationd.kill_task("test")
+    expirationd.kill("test")
 end)
 
 test:test("default drop function test", function(test)
@@ -459,23 +473,24 @@ test:test("default drop function test", function(test)
         space:insert{i, 'test_data', fiber.time() + 2}
     end
 
-    expirationd.run_task(
+    expirationd.start(
         "test",
-         space_name,
-         check_tuple_expire_by_timestamp,
-         nil,
-         {
-             field_no = 3,
-             archive_space_id = archive_space_id
-         },
-         10,
-         1
+        space_name,
+        check_tuple_expire_by_timestamp,
+        {
+            args = {
+                field_no = 3,
+                archive_space_id = archive_space_id,
+            },
+            tuples_per_iteration = 10,
+            full_scan_time = 1,
+        }
     )
 
     test:is(space:count{}, tuples_count, 'tuples are in space')
     fiber.sleep(3)
     test:is(space:count{}, 0, 'all tuples are expired with default function')
-    expirationd.kill_task("test")
+    expirationd.kill("test")
 end)
 
 test:test("restart test", function(test)
@@ -484,21 +499,57 @@ test:test("restart test", function(test)
     local space_name = 'restart_test'
     local space = box.space[space_name]
 
-    local task1 = expirationd.run_task(
-        "test1", space_name, check_tuple_expire_by_timestamp,
-         nil, { field_no = 3, archive_space_id = archive_space_id }, 10, 1
+    local task1 = expirationd.start(
+        "test1",
+        space_name,
+        check_tuple_expire_by_timestamp,
+        {
+            args = {
+                field_no = 3,
+                archive_space_id = archive_space_id
+            },
+            tuples_per_iteration = 10,
+            full_scan_time = 1,
+        }
     )
-    local task2 = expirationd.run_task(
-        "test2", space_name, check_tuple_expire_by_timestamp,
-         nil, { field_no = 3, archive_space_id = archive_space_id }, 10, 1
+    local task2 = expirationd.start(
+        "test2",
+        space_name,
+        check_tuple_expire_by_timestamp,
+        {
+            args = {
+                field_no = 3,
+                archive_space_id = archive_space_id
+            },
+            tuples_per_iteration = 10,
+            full_scan_time = 1,
+        }
     )
-    local task3 = expirationd.run_task(
-        "test3", space_name, check_tuple_expire_by_timestamp,
-         nil, { field_no = 3, archive_space_id = archive_space_id }, 10, 1
+    local task3 = expirationd.start(
+        "test3",
+        space_name,
+        check_tuple_expire_by_timestamp,
+        {
+            args = {
+                field_no = 3,
+                archive_space_id = archive_space_id,
+            },
+            tuples_per_iteration = 10,
+            full_scan_time = 1,
+        }
     )
-    local task4 = expirationd.run_task(
-        "test4", space_name, check_tuple_expire_by_timestamp,
-         nil, { field_no = 3, archive_space_id = archive_space_id }, 10, 1
+    local task4 = expirationd.start(
+        "test4",
+        space_name,
+        check_tuple_expire_by_timestamp,
+        {
+            args = {
+                field_no = 3,
+                archive_space_id = archive_space_id,
+            },
+            tuples_per_iteration = 10,
+            full_scan_time = 1,
+        }
     )
 
     local fiber_cnt = len(fiber.info())
@@ -529,10 +580,10 @@ test:test("restart test", function(test)
     task1:statistics()
     test:is(fiber_cnt, len(fiber.info()), "check for absence of ghost fibers")
 
-    expirationd.kill_task("test1")
-    expirationd.kill_task("test2")
-    expirationd.kill_task("test3")
-    expirationd.kill_task("test4")
+    expirationd.kill("test1")
+    expirationd.kill("test2")
+    expirationd.kill("test3")
+    expirationd.kill("test4")
 end)
 
 test:test("complex key test", function(test)
@@ -545,23 +596,24 @@ test:test("complex key test", function(test)
         space:insert{i, i*i + 100, fiber.time() + 1}
     end
 
-    expirationd.run_task(
+    expirationd.start(
         "test",
-         space_name,
-         check_tuple_expire_by_timestamp,
-         nil,
-         {
-             field_no = 3,
-             archive_space_id = archive_space_id
-         },
-         10,
-         1
+        space_name,
+        check_tuple_expire_by_timestamp,
+        {
+            args = {
+                field_no = 3,
+                archive_space_id = archive_space_id
+            },
+            tuples_per_iteration = 10,
+            full_scan_time = 1,
+        }
     )
 
     test:is(space:count{}, tuples_count, 'tuples are in space')
     fiber.sleep(3.1)
     test:is(space:count{}, 0, 'all tuples are expired with default function')
-    expirationd.kill_task("test")
+    expirationd.kill("test")
 end)
 
 test:test('delays and scan callbacks test', function(test)
@@ -628,7 +680,7 @@ test:test('delays and scan callbacks test', function(test)
     )
 
     cond:wait()
-    expirationd.kill_task(task_name)
+    expirationd.kill(task_name)
 end)
 
 test:test('error callback test', function(test)
@@ -676,7 +728,7 @@ test:test('error callback test', function(test)
     )
 
     cond:wait()
-    expirationd.kill_task(task_name)
+    expirationd.kill(task_name)
 
     test:ok(error_cb_called, 'the "error" callback has been invoked')
     test:ok(complete_cb_called, 'the "complete" callback has been invoked')

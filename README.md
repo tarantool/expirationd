@@ -29,24 +29,31 @@ Table below may help you to choose a proper module for your requirements:
 ### Examples
 
 Simple version:
+
 ```lua
 box.cfg{}
 space = box.space.old
 job_name = "clean_all"
 expirationd = require("expirationd")
+
 function is_expired(args, tuple)
   return true
 end
+
 function delete_tuple(space_id, args, tuple)
   box.space[space_id]:delete{tuple[1]}
 end
+
 expirationd.start(job_name, space.id, is_expired, {
-    process_expired_tuple = delete_tuple, args = nil,
-    tuples_per_iteration = 50, full_scan_time = 3600
+    process_expired_tuple = delete_tuple,
+    args = nil,
+    tuples_per_iteration = 50,
+    full_scan_time = 3600
 })
 ```
 
 Сustomized version:
+
 ```lua
 expirationd.start(job_name, space.id, is_expired, {
     -- name or id of the index in the specified space to iterate over

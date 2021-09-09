@@ -20,7 +20,7 @@ function g.test_passing()
     task:kill()
 
     -- errors
-    t.assert_error_msg_content_equals("Invalid type of iterate_with, expected function",
+    t.assert_error_msg_contains("bad argument options.iterate_with to nil (?function expected, got string)",
             expirationd.start, "clean_all", g.tree.id, helpers.is_expired_true,
             { iterate_with = "" })
 end

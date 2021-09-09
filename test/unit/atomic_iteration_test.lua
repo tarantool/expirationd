@@ -24,7 +24,7 @@ function g.test_passing()
     task:kill()
 
     -- errors
-    t.assert_error_msg_content_equals("Invalid type of atomic_iteration, expected boolean",
+    t.assert_error_msg_content_equals("bad argument options.atomic_iteration to nil (?boolean expected, got number)",
             expirationd.start, "clean_all", g.tree.id, helpers.is_expired_true,
             {atomic_iteration = 1})
 end

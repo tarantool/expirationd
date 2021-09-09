@@ -23,7 +23,7 @@ function g.test_passing_errors()
     -- ========================== --
     -- hash index
     -- ========================== --
-    t.assert_error_msg_content_equals(
+    t.assert_error_msg_contains(
             "Index 'primary' (HASH) of space 'hash' (memtx) does not support requested iterator type",
             expirationd.start, "clean_all", g.hash.id, helpers.is_expired_true, {start_key = 1, iterator_type = 1})
 

@@ -1,5 +1,4 @@
-all:
-	@echo "Only tests are available: make test"
+all: test
 
 check: luacheck
 

@@ -1,0 +1,640 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+   "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+<head>
+    <title>topology API reference</title>
+    <link rel="stylesheet" href="ldoc.css" type="text/css" />
+</head>
+<body>
+
+<div id="container">
+
+<div id="product">
+	<div id="product_logo"></div>
+	<div id="product_name"><big><b></b></big></div>
+	<div id="product_description"></div>
+</div> <!-- id="product" -->
+
+
+<div id="main">
+
+
+
+
+
+<!-- Menu -->
+
+<div id="navigation">
+<br/>
+<h1>ldoc</h1>
+
+
+<h2>Contents</h2>
+<ul>
+<li><a href="#Functions">Functions</a></li>
+</ul>
+
+
+<h2>Modules</h2>
+<ul class="nowrap">
+  <li><strong>expirationd</strong></li>
+</ul>
+
+</div>
+
+<div id="content">
+
+<h1>Module <code>expirationd</code></h1>
+<p>expirationd module</p>
+<p><table class="markdown_table">
+</table>
+</p>
+
+
+<h2><a href="#Functions">Functions</a></h2>
+<table class="function_list">
+	<tr>
+	<td class="name" nowrap><a href="#start">start (name, space_id, is_tuple_expired[, options])</a></td>
+	<td class="summary">Run a scheduled task to check and process (expire) tuples in a given space.</td>
+	</tr>
+	<tr>
+	<td class="name" nowrap><a href="#kill">kill (name)</a></td>
+	<td class="summary">Kill an existing task.</td>
+	</tr>
+	<tr>
+	<td class="name" nowrap><a href="#tasks">tasks ()</a></td>
+	<td class="summary">Return a copy of task list.</td>
+	</tr>
+	<tr>
+	<td class="name" nowrap><a href="#stats">stats ([name])</a></td>
+	<td class="summary">Return task statistics in table.</td>
+	</tr>
+	<tr>
+	<td class="name" nowrap><a href="#task">task (name)</a></td>
+	<td class="summary">Get task by name.</td>
+	</tr>
+	<tr>
+	<td class="name" nowrap><a href="#update">update ()</a></td>
+	<td class="summary">Update expirationd version in a running Tarantool and restart all tasks.</td>
+	</tr>
+</table>
+
+<br/>
+<br/>
+
+
+    <h2 class="section-header "><a name="Functions"></a>Functions</h2>
+
+    <dl class="function ">
+    <dt>
+    <a name="start"></a>
+    <strong>start (name, space_id, is_tuple_expired[, options])</strong>
+    </dt>
+    <dd>
+    <p>Run a scheduled task to check and process (expire) tuples in a given space. <table class="markdown_table">
+</table>
+</p>
+
+
+    <h3>Parameters:</h3>
+    <ul>
+        <li><span class="parameter">name</span>
+            <span class="parameter-info">
+                (<span class="types"><span class="type">string</span></span>)
+            </span>
+        <br>
+        <span class="parameter-description">
+        <p>
+     Task name.</p>
+        </span>
+        </li>
+        <li><span class="parameter">space_id</span>
+            <span class="parameter-info">
+                (<span class="types"><span class="type">string</span></span>)
+            </span>
+        <br>
+        <span class="parameter-description">
+        <p>
+     Space to look in for expired tuples.</p>
+        </span>
+        </li>
+        <li><span class="parameter">is_tuple_expired</span>
+            <span class="parameter-info">
+                (<span class="types"><span class="type">func</span></span>)
+            </span>
+        <br>
+        <span class="parameter-description">
+        <p>
+     Function, must accept tuple and return true/false (is tuple expired or
+     not), receives (args, tuple) as arguments.</p>
+        </span>
+        </li>
+        <li><span class="parameter">options</span>
+            <span class="parameter-info">
+                (<span class="types"><span class="type">table</span></span>,
+                <span class="parameter-modifier">
+                <em>optional</em>)
+                </span>
+            </span>
+
+        <br>
+        <span class="parameter-description">
+        <p>
+     Table with named options.</p>
+        </span>
+        <ul>
+        <li><span class="parameter">process_expired_tuple</span>
+            <span class="parameter-info">
+                (<span class="types"><span class="type">func</span></span>,
+                <span class="parameter-modifier">
+                <em>optional</em>)
+                </span>
+            </span>
+        <br>
+        <span class="parameter-description">
+        <p>
+     Applied to expired tuples, receives (space_id, args, tuple) as
+     arguments. Can be a nil: by default tuples are removed.</p>
+        </span>
+        </li>
+        <li><span class="parameter">index</span>
+            <span class="parameter-info">
+                (<span class="types"><span class="type">string</span></span>,
+                <span class="parameter-modifier">
+                <em>optional</em>)
+                </span>
+            </span>
+        <br>
+        <span class="parameter-description">
+        <p>
+     Name or id of the index to iterate on. If omitted, will use the primary
+     index. If there's no index with this name, will throw an error.
+     Supported index types are TREE and HASH, using other types will result
+     in an error.</p>
+        </span>
+        </li>
+        <li><span class="parameter">iterator_type</span>
+            <span class="parameter-info">
+                (<span class="types"><span class="type">string</span></span>,
+                <span class="parameter-modifier">
+                <em>optional</em>)
+                </span>
+            </span>
+        <br>
+        <span class="parameter-description">
+        <p>
+     Type of the iterator to use, as string or box.index constant, for
+     example, 'EQ' or box.index.EQ; default is box.index.ALL. See <a href="https://www.tarantool.io/en/doc/latest/reference/reference_lua/box_index/pairs/.">index_object:pairs()</a>.
+<p><table class="markdown_table">
+</table>
+</p>
+        </span>
+        </li>
+        <li><span class="parameter">start_key</span>
+            <span class="parameter-info">
+                (<span class="types"><span class="type">string</span></span>,
+                <span class="parameter-modifier">
+                <em>optional</em>)
+                </span>
+            </span>
+        <br>
+        <span class="parameter-description">
+        <p>
+     Start iterating from the tuple with this index value. Or when iterator
+     is 'EQ', iterate over tuples with this index value. Must be a value of
+     the same data type as the index field or fields, or a function which
+     returns such value. If omitted or nil, all tuples will be checked.</p>
+        </span>
+        </li>
+        <li><span class="parameter">tuples_per_iteration</span>
+            <span class="parameter-info">
+                (<span class="types"><span class="type">number</span></span>,
+                <span class="parameter-modifier">
+                <em>optional</em>)
+                </span>
+            </span>
+        <br>
+        <span class="parameter-description">
+        <p>
+     Number of tuples to check in one batch (iteration). Default is 1024.</p>
+        </span>
+        </li>
+        <li><span class="parameter">atomic_iteration</span>
+            <span class="parameter-info">
+                (<span class="types"><span class="type">boolean</span></span>,
+                <span class="parameter-modifier">
+                <em>optional</em>)
+                </span>
+            </span>
+        <br>
+        <span class="parameter-description">
+        <p>
+     False (default) to process each tuple as a single transaction and true
+     to process tuples from each batch in a single transaction.</p>
+        </span>
+        </li>
+        <li><span class="parameter">process_while</span>
+            <span class="parameter-info">
+                (<span class="types"><span class="type">func</span></span>,
+                <span class="parameter-modifier">
+                <em>optional</em>)
+                </span>
+            </span>
+        <br>
+        <span class="parameter-description">
+        <p>
+     Function to call before checking each tuple. If it returns false, the
+     task will stop until next full scan.</p>
+        </span>
+        </li>
+        <li><span class="parameter">iterate_with</span>
+            <span class="parameter-info">
+                (<span class="types"><span class="type">func</span></span>,
+                <span class="parameter-modifier">
+                <em>optional</em>)
+                </span>
+            </span>
+        <br>
+        <span class="parameter-description">
+        <p>
+     Function which returns an iterator object which provides tuples to
+     check, considering the start_key, process_while and other options.
+     There's a default function which can be overriden with this parameter.</p>
+        </span>
+        </li>
+        <li><span class="parameter">on_full_scan_start</span>
+            <span class="parameter-info">
+                (<span class="types"><span class="type">func</span></span>,
+                <span class="parameter-modifier">
+                <em>optional</em>)
+                </span>
+            </span>
+        <br>
+        <span class="parameter-description">
+        <p>
+     Function to call before starting a full scan iteration.</p>
+        </span>
+        </li>
+        <li><span class="parameter">on_full_scan_complete</span>
+            <span class="parameter-info">
+                (<span class="types"><span class="type">func</span></span>,
+                <span class="parameter-modifier">
+                <em>optional</em>)
+                </span>
+            </span>
+        <br>
+        <span class="parameter-description">
+        <p>
+     Function to call after completing a full scan iteration.</p>
+        </span>
+        </li>
+        <li><span class="parameter">on_full_scan_success</span>
+            <span class="parameter-info">
+                (<span class="types"><span class="type">func</span></span>,
+                <span class="parameter-modifier">
+                <em>optional</em>)
+                </span>
+            </span>
+        <br>
+        <span class="parameter-description">
+        <p>
+     Function to call after successfully completing a full scan iteration.</p>
+        </span>
+        </li>
+        <li><span class="parameter">on_full_scan_error</span>
+            <span class="parameter-info">
+                (<span class="types"><span class="type">func</span></span>,
+                <span class="parameter-modifier">
+                <em>optional</em>)
+                </span>
+            </span>
+        <br>
+        <span class="parameter-description">
+        <p>
+     Function to call after terminating a full scan due to an error.</p>
+        </span>
+        </li>
+        <li><span class="parameter">args</span>
+            <span class="parameter-info">
+                (<span class="types"><span class="type">table</span></span>,
+                <span class="parameter-modifier">
+                <em>optional</em>)
+                </span>
+            </span>
+        <br>
+        <span class="parameter-description">
+        <p>
+     Passed to <code>is_tuple_expired()</code> and <code>process_expired_tuple()</code> as
+     an additional context.</p>
+        </span>
+        </li>
+        <li><span class="parameter">full_scan_time</span>
+            <span class="parameter-info">
+                (<span class="types"><span class="type">number</span></span>,
+                <span class="parameter-modifier">
+                <em>optional</em>)
+                </span>
+            </span>
+        <br>
+        <span class="parameter-description">
+        <p>
+     Time required for a full index scan (in seconds).</p>
+        </span>
+        </li>
+        <li><span class="parameter">iteration_delay</span>
+            <span class="parameter-info">
+                (<span class="types"><span class="type">number</span></span>,
+                <span class="parameter-modifier">
+                <em>optional</em>)
+                </span>
+            </span>
+        <br>
+        <span class="parameter-description">
+        <p>
+     Max sleep time between iterations (in seconds).</p>
+        </span>
+        </li>
+        <li><span class="parameter">full_scan_delay</span>
+            <span class="parameter-info">
+                (<span class="types"><span class="type">number</span></span>,
+                <span class="parameter-modifier">
+                <em>optional</em>)
+                </span>
+            </span>
+        <br>
+        <span class="parameter-description">
+        <p>
+     Sleep time between full scans (in seconds).</p>
+        </span>
+        </li>
+        <li><span class="parameter">force</span>
+            <span class="parameter-info">
+                (<span class="types"><span class="type">boolean</span></span>,
+                <span class="parameter-modifier">
+                <em>optional</em>)
+                </span>
+            </span>
+        <br>
+        <span class="parameter-description">
+        <p>
+     Run task even on replica.</p>
+        </span>
+        </li>
+        <li><span class="parameter">vinyl_assumed_space_len</span>
+            <span class="parameter-info">
+                (<span class="types"><span class="type">number</span></span>,
+                <span class="parameter-modifier">
+                <em>optional</em>)
+                </span>
+            </span>
+        <br>
+        <span class="parameter-description">
+        <p>
+     TODO</p>
+        </span>
+        </li>
+        <li><span class="parameter">vinyl_assumed_space_len_factor</span>
+            <span class="parameter-info">
+                (<span class="types"><span class="type">number</span></span>,
+                <span class="parameter-modifier">
+                <em>optional</em>)
+                </span>
+            </span>
+        <br>
+        <span class="parameter-description">
+        <p>
+     TODO
+</p>
+        </span>
+        </li>
+        </li></ul>
+    </ul>
+
+    <h3>Returns:</h3>
+    <ol>
+
+           <span class="types"><a class="type" href="index.html#task">task</a></span>
+        <table class="markdown_table">
+</table>
+
+    </ol>
+
+
+
+    <h3>Usage:</h3>
+    <ul>
+        <pre class="example"><span class="keyword">local</span> expirationd = <span class="global">require</span>(<span class="string">"expirationd"</span>)
+
+box.cfg{}
+
+<span class="keyword">local</span> space = box.space.old
+<span class="keyword">local</span> job_name = <span class="string">"clean_all"</span>
+
+<span class="keyword">local</span> <span class="keyword">function</span> is_expired(args, tuple)
+    <span class="keyword">return</span> <span class="keyword">true</span>
+<span class="keyword">end</span>
+
+<span class="keyword">local</span> <span class="keyword">function</span> delete_tuple(space_id, args, tuple)
+    box.space[space_id]:delete{tuple[<span class="number">1</span>]}
+<span class="keyword">end</span>
+
+expirationd.start(job_name, space.id, is_expired, {
+    process_expired_tuple = delete_tuple,
+    args = <span class="keyword">nil</span>,
+    tuples_per_iteration = <span class="number">50</span>,
+    full_scan_time = <span class="number">3600</span>
+})</pre>
+    </ul>
+
+</dd>
+    <dt>
+    <a name="kill"></a>
+    <strong>kill (name)</strong>
+    </dt>
+    <dd>
+    <p>Kill an existing task. <table class="markdown_table">
+</table>
+</p>
+
+
+    <h3>Parameters:</h3>
+    <ul>
+        <li><span class="parameter">name</span>
+            <span class="parameter-info">
+                (<span class="types"><span class="type">string</span></span>)
+            </span>
+        <br>
+        <span class="parameter-description">
+        <p>
+     Task name.
+</p>
+        </span>
+        </li>
+    </ul>
+
+    <h3>Returns:</h3>
+    <ol>
+
+        nil
+    </ol>
+
+
+
+
+</dd>
+    <dt>
+    <a name="tasks"></a>
+    <strong>tasks ()</strong>
+    </dt>
+    <dd>
+    <p>Return a copy of task list. <table class="markdown_table">
+</table>
+</p>
+
+
+
+    <h3>Returns:</h3>
+    <ol>
+
+        table
+    </ol>
+
+
+
+
+</dd>
+    <dt>
+    <a name="stats"></a>
+    <strong>stats ([name])</strong>
+    </dt>
+    <dd>
+    <p>Return task statistics in table. <table class="markdown_table">
+</table>
+</p>
+
+
+    <h3>Parameters:</h3>
+    <ul>
+        <li><span class="parameter">name</span>
+            <span class="parameter-info">
+                (<span class="types"><span class="type">string</span></span>,
+                <span class="parameter-modifier">
+                <em>optional</em>)
+                </span>
+            </span>
+        <br>
+        <span class="parameter-description">
+        <p>
+     Task name. If <code>name</code> is nil, then return map of <code>name</code>:<code>stats</code>, else
+     return map with stats.
+</p>
+        </span>
+        </li>
+    </ul>
+
+    <h3>Returns:</h3>
+    <ol>
+
+         table with following keys:
+<p><ul class="markdown_list">
+<li><code>checked_count</code>, number of checked tuples (expired + skipped)</li>
+</ul>
+<p><ul class="markdown_list">
+<li><code>expired_count</code>, number of expired tuples</li>
+</ul>
+<p><ul class="markdown_list">
+<li><code>restarts</code>, number of task restarts</li>
+</ul>
+<p><ul class="markdown_list">
+<li><code>working_time</code>, task operation time</li>
+</ul>
+<p><table class="markdown_table">
+</table>
+
+    </ol>
+
+
+
+
+</dd>
+    <dt>
+    <a name="task"></a>
+    <strong>task (name)</strong>
+    </dt>
+    <dd>
+    <p>Get task by name. <table class="markdown_table">
+</table>
+</p>
+
+
+    <h3>Parameters:</h3>
+    <ul>
+        <li><span class="parameter">name</span>
+            <span class="parameter-info">
+                (<span class="types"><span class="type">string</span></span>)
+            </span>
+        <br>
+        <span class="parameter-description">
+        <p>
+     Task name.
+</p>
+        </span>
+        </li>
+    </ul>
+
+    <h3>Returns:</h3>
+    <ol>
+
+        table
+    </ol>
+
+
+
+    <h3>Usage:</h3>
+    <ul>
+        <pre class="example"></pre>
+    </ul>
+
+</dd>
+    <dt>
+    <a name="update"></a>
+    <strong>update ()</strong>
+    </dt>
+    <dd>
+    <p>Update expirationd version in a running Tarantool and restart all tasks. <table class="markdown_table">
+</table>
+<p>
+<ul class="markdown_list">
+<li>remove expirationd from <code>package.loaded</code></li>
+</ul>
+<p><ul class="markdown_list">
+<li>require a new expirationd</li>
+</ul>
+<p><ul class="markdown_list">
+<li>restart all tasks</li>
+</ul>
+<p><table class="markdown_table">
+</table>
+</p>
+
+
+
+    <h3>Returns:</h3>
+    <ol>
+
+        nil
+    </ol>
+
+
+
+
+</dd>
+</dl>
+
+
+</div> <!-- id="content" -->
+</div> <!-- id="main" -->
+</div> <!-- id="container" -->
+</body>
+</html>

@@ -142,7 +142,7 @@ local function init_box()
     }
     local index_type = arg[1] or os.getenv('INDEX_TYPE') or 'TREE'
     local space_type = arg[2] or os.getenv('SPACE_TYPE') or 'memtx'
-    if space_type == 'sophia' or space_type == 'phia' or space_type == 'vinyl' then
+    if space_type == 'vinyl' then
         space_type = nil
         if box.error.VINYL ~= nil then
             space_type = 'vinyl'

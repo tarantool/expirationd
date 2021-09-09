@@ -28,7 +28,7 @@ function g.test_passing()
     task:kill()
 
     -- errors
-    t.assert_error_msg_content_equals("Invalid type of process_while, expected function",
+    t.assert_error_msg_contains("bad argument options.process_while to nil (?function expected, got string)",
             expirationd.start, "clean_all", g.tree.id, helpers.is_expired_true,
             { process_while = "" })
 end

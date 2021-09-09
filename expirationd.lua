@@ -14,6 +14,7 @@
 -- local support functions
 -- ========================================================================= --
 
+local checks = require("checks")
 local fun = require("fun")
 local log = require("log")
 local fiber = require("fiber")
@@ -369,9 +370,27 @@ end
 --     * force                 -- Run task even on replica.
 --  }
 local function expirationd_run_task(name, space_id, is_tuple_expired, options)
-    if name == nil then
-        error("task name is nil")
-    end
+    checks('string', 'number|string', 'function', {
+        args = '?',
+        atomic_iteration = '?boolean',
+        force = '?boolean',
+        full_scan_delay = '?number|cdata',
+        full_scan_time = '?number|cdata',
+        index = '?number|string',
+        iterate_with = '?function',
+        iteration_delay = '?number|cdata',
+        iterator_type = '?number|string',
+        on_full_scan_complete = '?function',
+        on_full_scan_error = '?function',
+        on_full_scan_start = '?function',
+        on_full_scan_success = '?function',
+        process_expired_tuple = '?function',
+        process_while = '?function',
+        start_key = '?',
+        tuples_per_iteration = '?number|cdata',
+        vinyl_assumed_space_len_factor = '?number|cdata',
+        vinyl_assumed_space_len = '?number|cdata',
+    })
 
     -- check, does the task exist
     local prev = task_list[name]
@@ -380,31 +399,10 @@ local function expirationd_run_task(name, space_id, is_tuple_expired, options)
         prev:kill(name)
     end
     local task = create_task(name)
-
-    -- required params
-
-    -- check expiration space number (required)
-    if space_id == nil then
-        error("space_id is nil")
-    end
     task.space_id = space_id
-
-    if is_tuple_expired == nil or type(is_tuple_expired) ~= "function" then
-        error("is_tuple_expired is not a function, please provide a check function")
-    end
     task.is_tuple_expired = is_tuple_expired
 
-    -- optional params
-    if options ~= nil and type(options) ~= "table" then
-        error("options must be table or not defined")
-    end
     options = options or {}
-
-    -- process expired tuple handler
-    if options.process_expired_tuple and
-            type(options.process_expired_tuple) ~= "function" then
-        error("process_expired_tuple is not defined, please provide a purge function")
-    end
     task.process_expired_tuple = options.process_expired_tuple or default_tuple_drop
 
     -- validate index
@@ -445,26 +443,14 @@ local function expirationd_run_task(name, space_id, is_tuple_expired, options)
 
     -- check process_while
     if options.process_while ~= nil then
-        if type(options.process_while) ~= "function" then
-            error("Invalid type of process_while, expected function")
-        end
         task.process_while = options.process_while
     end
 
     -- check transaction option
     if options.atomic_iteration ~= nil then
-        if type(options.atomic_iteration) ~= "boolean" then
-            error("Invalid type of atomic_iteration, expected boolean")
-        end
         task.atomic_iteration = options.atomic_iteration
     end
 
-    -- check iterate_with
-    if options.iterate_with ~= nil then
-        if type(options.iterate_with) ~= "function" then
-            error("Invalid type of iterate_with, expected function")
-        end
-    end
     task.iterate_with = options.iterate_with or default_iterate_with
 
     -- check expire and process after expiration handler's arguments
@@ -487,67 +473,40 @@ local function expirationd_run_task(name, space_id, is_tuple_expired, options)
     end
 
     if options.force ~= nil then
-        if type(options.force) ~= "boolean" then
-            error("Invalid type of force value")
-        end
         task.force = options.force
     end
 
     if options.vinyl_assumed_space_len ~= nil then
-        if type(options.vinyl_assumed_space_len) ~= "number" then
-            error("Invalid type of vinyl_assumed_space_len value")
-        end
         task.vinyl_assumed_space_len = options.vinyl_assumed_space_len
     end
 
     if options.vinyl_assumed_space_len_factor ~= nil then
-        if type(options.vinyl_assumed_space_len_factor) ~= "number" then
-            error("Invalid type of vinyl_assumed_space_len_factor value")
-        end
         task.vinyl_assumed_space_len_factor = options.vinyl_assumed_space_len_factor
     end
 
     task.do_worker_iteration = default_do_worker_iteration
 
     if options.iteration_delay ~= nil then
-        if type(options.iteration_delay) ~= "number" then
-            error("Invalid type of iteration_delay value")
-        end
         task.iteration_delay = options.iteration_delay
     end
 
     if options.full_scan_delay ~= nil then
-        if type(options.full_scan_delay) ~= "number" then
-            error("Invalid type of full_scan_delay value")
-        end
         task.full_scan_delay = options.full_scan_delay
     end
 
     if options.on_full_scan_start ~= nil then
-        if type(options.on_full_scan_start) ~= "function" then
-            error("Invalid type of on_full_scan_start, expected function")
-        end
         task.on_full_scan_start = options.on_full_scan_start
     end
 
     if options.on_full_scan_success ~= nil then
-        if type(options.on_full_scan_success) ~= "function" then
-            error("Invalid type of on_full_scan_success, expected function")
-        end
         task.on_full_scan_success = options.on_full_scan_success
     end
 
     if options.on_full_scan_complete ~= nil then
-        if type(options.on_full_scan_complete) ~= "function" then
-            error("Invalid type of on_full_scan_complete, expected function")
-        end
         task.on_full_scan_complete = options.on_full_scan_complete
     end
 
     if options.on_full_scan_error ~= nil then
-        if type(options.on_full_scan_error) ~= "function" then
-            error("Invalid type of on_full_scan_error, expected function")
-        end
         task.on_full_scan_error = options.on_full_scan_error
     end
 
@@ -580,6 +539,8 @@ end
 -- params:
 --    name -- is task's name
 local function expirationd_kill_task(name)
+    checks('string')
+
     return get_task(name):kill()
 end
 
@@ -596,6 +557,8 @@ end
 -- params:
 --   name -- task's name
 local function expirationd_task_stats(name)
+    checks('?string')
+
     if name ~= nil then
         return get_task(name):statistics()
     end
@@ -610,6 +573,8 @@ end
 
 -- get task by name
 local function expirationd_get_task(name)
+    checks('string')
+
     return get_task(name)
 end
 

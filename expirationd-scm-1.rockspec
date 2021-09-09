@@ -11,7 +11,8 @@ description = {
     maintainer = "Eugine Blikh <bigbes@tarantool.org>"
 }
 dependencies = {
-    "lua >= 5.1" -- actually tarantool > 1.6
+    "lua >= 5.1", -- actually tarantool > 1.6
+    "checks == 3.1.0-1",
 }
 build = {
     type = "builtin",

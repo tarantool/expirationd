@@ -37,7 +37,7 @@ function g.test_passing()
     t.assert_error_msg_content_equals("Index with id 10 does not exist",
             expirationd.start, "clean_all", g.tree.id, helpers.is_expired_true,
             {index = 10})
-    t.assert_error_msg_content_equals("Invalid type of index, expected string or number",
+    t.assert_error_msg_contains("bad argument options.index to nil (?number|string expected, got table)",
             expirationd.start, "clean_all", g.tree.id, helpers.is_expired_true,
             {index = { 10 }})
 end

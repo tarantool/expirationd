@@ -1,14 +1,6 @@
--- ========================================================================= --
--- Tarantool/Box expiration daemon
+--- expirationd - data expiration with custom quirks.
 --
--- Daemon management functions:
---   - expirationd.start  -- start a new expiration task
---   - expirationd.stats  -- show task stats
---   - expirationd.update -- update expirationd from disk
---   - expirationd.kill   -- kill a running task
---   - expirationd.task   -- get an existing task
---   - expirationd.tasks  -- get list with all tasks
--- ========================================================================= --
+-- @module expirationd
 
 -- ========================================================================= --
 -- local support functions
@@ -210,17 +202,39 @@ end
 -- Task management
 -- ------------------------------------------------------------------------- --
 
--- Task methods:
--- * task:start()      -- start task
--- * task:stop()       -- stop task
--- * task:restart()    -- restart task
--- * task:kill()       -- stop task and delete
--- * task:statistics() -- return table with statistics
+-- {{{ Task instance methods
+
+--- Task instance methods.
+--
+-- NOTE: task object contains a number of properties that available for users.
+-- However these properties are not a part of expirationd API. Property name
+-- can be changed or property itself can be removed in future version. Be
+-- careful!
+--
+-- @section Methods
+--
 local Task_methods = {
+    --- Start a task.
+    --
+    -- @param  self
+    --     Task instance.
+    --
+    -- @return None
+    --
+    -- @function task.start
     start = function (self)
         self:stop()
         self.guardian_fiber = fiber.create(guardian_loop, self)
     end,
+
+    --- Stop a task.
+    --
+    -- @param  self
+    --     Task instance.
+    --
+    -- @return None
+    --
+    -- @function task.stop
     stop = function (self)
         if (get_fiber_id(self.guardian_fiber) ~= 0) then
             self.guardian_fiber:cancel()
@@ -240,14 +254,62 @@ local Task_methods = {
             self.worker_fiber = nil
         end
     end,
+
+    --- Restart a task.
+    --
+    -- @param  self
+    --     Task instance.
+    --
+    -- @return None
+    --
+    -- @function task.restart
     restart = function (self)
         self:stop()
         self:start()
     end,
+
+    --- Kill a task.
+    --
+    -- Stop a task and delete it from list of tasks.
+    --
+    -- @param  self
+    --     Task instance.
+    --
+    -- @return None
+    --
+    -- @function task.kill
     kill = function (self)
         self:stop()
         task_list[self.name] = nil
     end,
+
+    --- Get a statistics about a task.
+    --
+    -- @param  self
+    --     Task instance.
+    --
+    -- @return Response of the following structure:
+    --
+    -- ```
+    -- {
+    --     checked_count = number,
+    --     expired_count = number,
+    --     restarts = number,
+    --     working_time = number,
+    -- }
+    -- ```
+    --
+    -- where:
+    --
+    -- `checked_count` is a number of tuples checked for expiration (expired + skipped).
+    --
+    -- `expired_count` is a number of expired tuples.
+    --
+    -- `restarts` is a number of restarts since start. From the start `restarts` is equal to 1.
+    --
+    -- `working_time` is a task's operation time.
+    --
+    -- @function task.statistics
     statistics = function (self)
         return {
             checked_count = self.checked_tuples_count,
@@ -258,7 +320,9 @@ local Task_methods = {
     end,
 }
 
--- create new expiration task
+-- }}} Task instance methods
+
+--- create new expiration task
 local function create_task(name)
     local task = setmetatable({
         name                  = name,
@@ -327,48 +391,213 @@ end
 -- ========================================================================= --
 -- Expiration daemon management functions
 -- ========================================================================= --
-
--- Run a scheduled task to check and process (expire) tuples in a given space.
 --
--- params:
---   name             -- task name
---   space_id         -- space to look in for expired tuples
---   is_tuple_expired -- a function, must accept tuple and return
---                       true/false (is tuple expired or not),
---                       receives (args, tuple) as arguments
---   options = {      -- (table with named options)
---     * process_expired_tuple -- Applied to expired tuples, receives (space_id, args, tuple) as arguments;
---                                can be nil: by default, tuples are removed.
---     * index                 -- Name or id of the index to iterate on; if omitted, will use the primary index;
---                                if there's no index with this name, will throw an error.
---                                supported index types are TREE and HASH, using other types will result in an error.
---     * iterator_type         -- Type of the iterator to use, as string or box.index constant,
---                                for example, 'EQ' or box.index.EQ; default is box.index.ALL;
---                                see https://www.tarantool.io/en/doc/latest/reference/reference_lua/box_index/pairs/.
---     * start_key             -- Start iterating from the tuple with this index value;
---                                or when iterator is 'EQ', iterate over tuples with this index value;
---                                must be a value of the same data type as the index field or fields,
---                                or a function which returns such value;
---                                if omitted or nil, all tuples will be checked.
---     * tuples_per_iteration  -- Number of tuples to check in one batch (iteration); default is 1024.
---     * atomic_iteration      -- Boolean, false (default) to process each tuple as a single transaction;
---                                true to process tuples from each batch in a single transaction.
---     * process_while         -- Function to call before checking each tuple;
---                                if it returns false, the task will stop until next full scan.
---     * iterate_with          -- Function which returns an iterator object which provides tuples to check,
---                                considering the start_key, process_while and other options.
---                                There's a default function which can be overriden with this parameter.
---     * on_full_scan_start    -- Function to call before starting a full scan iteration.
---     * on_full_scan_complete -- Function to call after completing a full scan iteration.
---     * on_full_scan_success  -- Function to call after successfully completing a full scan iteration.
---     * on_full_scan_error    -- Function to call after terminating a full scan due to an error.
---     * args                  -- Passed to is_tuple_expired and
---                                process_expired_tuple() as additional context.
---     * full_scan_time        -- Time required for a full index scan (in seconds).
---     * iteration_delay       -- Max sleep time between iterations (in seconds).
---     * full_scan_delay       -- Sleep time between full scans (in seconds).
---     * force                 -- Run task even on replica.
---  }
+-- {{{ Module functions
+--
+
+--- Module functions
+--
+-- @section Functions
+
+--- Run a scheduled task to check and process (expire) tuples in a given space.
+--
+-- How expirationd works in general:
+--
+-- 1. Process min(`space_length`, `tuples_per_iteration`) tuples at once.
+--
+-- 2. Sleep `tuples_per_iteration` × `full_scan_time` / `space_length` (but not
+--    beyond 1 second).
+--
+-- 3. Repeat 1-2 until the whole space will be traversed.
+--
+-- 4. Sleep 1 second.
+--
+-- 5. Repeat 1-4.
+--
+--
+-- @string name
+--     Task name.
+-- @string space_id
+--     Space to look in for expired tuples. `space_id` can be numeric or
+--     string.
+-- @func is_tuple_expired
+--     Function, must accept tuple and return `true` or `false` (is tuple
+--     expired or not), receives `args` and `tuple` as arguments.
+--
+--
+-- Example of function:
+--
+-- ```
+-- local function is_tuple_expired(args, tuple)
+--     local tuple_expire_time = get_field(tuple, args.field_no)
+--     local current_time = fiber.time()
+--     return current_time >= tuple_expire_time
+-- end
+-- ```
+--
+-- @table[opt] options
+--     Table with named options.
+-- @param[opt] options.args
+--     Passed to `is_tuple_expired()` and `process_expired_tuple()` as
+--     an additional context.
+-- @boolean[opt] options.atomic_iteration
+--     False (default) to process each tuple as a single transaction and true
+--     to process tuples from each batch in a single transaction.
+-- @boolean[opt] options.force
+--     By default expirationd should process tasks only on the writeable
+--     instance, it means that expirationd will not start task processing on a
+--     replica. Here the word 'replica' means an instance with at least one
+--     configured upstream, it's an option `box.cfg.replication_source`
+--     (`box.cfg.replication` for Tarantool 1.7.6+). The option `force` let a
+--     user control where to start task processing and where don't.
+--
+-- @number[opt] options.full_scan_delay
+--     Sleep time between full scans (in seconds). It is allowed to pass an FFI
+--     number: `1LL`, `1ULL` etc. Default value is 1 sec.
+-- @number[opt] options.full_scan_time
+--     Time required for a full index scan (in seconds). It is allowed to pass
+--     an FFI number: `1LL`, `1ULL` etc. `full_scan_time` used for calculation
+--     of time during which fiber sleeps between iterations. Default value is
+--     3600.
+-- @string[opt] options.index
+--     Name or id of the index to iterate on. If omitted, will use the primary
+--     index. If there's no index with this name, will throw an error.
+--     Supported index types are TREE and HASH, using other types will result
+--     in an error.
+-- @func[opt] options.iterate_with
+--     Function which returns an iterator object which provides tuples to
+--     check, considering the `start_key`, `process_while` and other options.
+--     When option is nil default function is used. Function must accept a task
+--     instance object. Default function returns iterator returned by
+--     [index_object:pairs()][1], where `index` is a primary index or index
+--     that specified with argument `options.index`:
+--
+-- ```
+--  index:pairs(option.start_key(), {
+--     iterator = option.iterator_type
+--  }):take_while(
+--         function()
+--             return option.process_while()
+--         end
+--    )
+-- ```
+--
+--     [1]: https://www.tarantool.io/en/doc/latest/reference/reference_lua/box_index/pairs/.
+--
+-- @number[opt] options.iteration_delay
+--     Max sleep time between iterations (in seconds). It is allowed to pass
+--     an FFI number: `1LL`, `1ULL` etc. Default value is 1 sec.
+--     Fiber sleeps min(`tuples_per_iteration` × `full_scan_time` / `space_length`, `iteration_delay`).
+-- @string[opt] options.iterator_type
+--     Type of the iterator to use, as string or box.index constant, for
+--     example, `EQ` or `box.index.EQ`, default is `box.index.ALL`. See more
+--     about index iterators in [index_object:pairs()][1].
+--
+--     [1]: https://www.tarantool.io/en/doc/latest/reference/reference_lua/box_index/pairs/.
+--
+-- @func[opt] options.on_full_scan_complete
+--     Function to call after completing a full scan iteration. Default value
+--     is a function that do nothing.
+-- @func[opt] options.on_full_scan_error
+--     Function to call after terminating a full scan due to an error. Default
+--     value is a function that do nothing.
+--
+-- Example of function:
+--
+-- ```
+-- local function on_full_scan_complete()
+--     pcall(fiber.sleep, 1)
+-- end
+-- ```
+-- @func[opt] options.on_full_scan_start
+--     Function to call before starting a full scan iteration. Default value
+--     is a function that do nothing.
+-- @func[opt] options.on_full_scan_success
+--     Function to call after successfully completing a full scan iteration.
+--     Default value is a function that do nothing.
+-- @func[opt] options.process_expired_tuple
+--     Applied to expired tuples, receives `space_id`, `args`, `tuple` as
+--     arguments. When `process_expired_tuple` is not passed (or `nil` passed),
+--     tuples are removed.
+--
+-- Example of function:
+--
+-- ```
+-- local function put_tuple_to_archive(space_id, args, tuple)
+--     box.space[space_id]:delete{tuple[1]}
+--     local email = tuple[2]
+--     if args.archive_space_id ~= nil and email ~= nil then
+--         box.space[args.archive_space_id]:replace{email, fiber.time()}
+--     end
+-- end
+-- ```
+--
+-- @func[opt] options.process_while
+--     Function to call before checking each tuple. If it returns false, the
+--     task will stop until next full scan. Default is a function that always
+--     return `true`.
+--
+-- Example of function:
+--
+-- ```
+-- local function process_while()
+--     return false
+-- end
+-- ```
+--
+-- @param[opt] options.start_key
+--     Start iterating from the tuple with this index value. Or when iterator
+--     is 'EQ', iterate over tuples with this index value. Must be a value of
+--     the same data type as the index field or fields, or a function which
+--     returns such value. If omitted or nil, all tuples will be checked.
+-- @number[opt] options.tuples_per_iteration
+--     Number of tuples to check in one batch (iteration). It is allowed to
+--     pass an FFI number: `1LL`, `1ULL` etc. Default value is 1024.
+-- @number[opt] options.vinyl_assumed_space_len_factor
+--     Factor for recalculation of vinyl space size. Vinyl space size can't be
+--     counted (since many operations, `upsert` for example, are applied when
+--     you address some data), so you should count (approximate space size)
+--     tuples with the first start. `vinyl_assumed_space_len` is approximate
+--     count for first run and `vinyl_assumed_space_len_factor` for next
+--     milestone (after we've reached next milestone is `*` and so on). It is
+--     allowed to pass an FFI number: `1LL`, `1ULL` etc. Default value is 2.
+-- @number[opt] options.vinyl_assumed_space_len
+--     Assumed size of vinyl space (in the first iteration).
+--     Vinyl space size can't be counted (since many operations, `upsert` for
+--     example, are applied when you address some data), so you should count
+--     (approximate space size) tuples with the first start.
+--     `vinyl_assumed_space_len` is approximate count for first run and
+--     `vinyl_assumed_space_len_factor` for next milestone (after we've reached
+--     next milestone is `*` and so on). It is allowed to pass an FFI number:
+--     `1LL`, `1ULL` etc. Default value is 10^7.
+--
+-- @return task instance
+--
+-- @usage
+--
+-- local expirationd = require('expirationd')
+--
+-- box.cfg{}
+--
+-- local space = box.space.old
+-- local job_name = "clean_all"
+--
+-- local function is_expired(args, tuple)
+--     return true
+-- end
+--
+-- local function delete_tuple(space_id, args, tuple)
+--     box.space[space_id]:delete{tuple[1]}
+-- end
+--
+-- expirationd.start(job_name, space.id, is_expired, {
+--     process_expired_tuple = delete_tuple,
+--     args = nil,
+--     tuples_per_iteration = 50,
+--     full_scan_time = 3600
+-- })
+--
+-- @function expirationd.start
 local function expirationd_run_task(name, space_id, is_tuple_expired, options)
     checks('string', 'number|string', 'function', {
         args = '?',
@@ -537,27 +766,66 @@ local function run_task_obsolete(name,
     )
 end
 
--- Kill named task
--- params:
---    name -- is task's name
+--- Kill an existing task.
+--
+-- @string name
+--     Task name.
+--
+-- @return None
+--
+-- @function expirationd.kill
 local function expirationd_kill_task(name)
     checks('string')
 
     return get_task(name):kill()
 end
 
--- Return copy of task list
+--- Return a list with task's names.
+--
+-- @return Response of the following structure:
+--
+-- ```
+-- {
+--     "expirationd-1"
+--     "expirationd-2",
+--     "expirationd-3",
+-- }
+-- ```
+--
+-- @function expirationd.tasks
 local function expirationd_show_task_list()
     return fun.map(function(x) return x end, fun.iter(task_list)):totable()
 end
 
--- Return task statistics in table
--- * checked_count - count of checked tuples (expired + skipped)
--- * expired_count - count of expired tuples
--- * restarts      - count of task restarts
--- * working_time  - task operation time
--- params:
---   name -- task's name
+--- Return task statistics in table.
+--
+-- @string[opt] name
+--     Task name. If `name` is nil, then return map of `name`:`stats`, else
+--     return map with stats.
+--
+-- @return Response of the following structure:
+--
+-- ```
+-- {
+--     checked_count = number,
+--     expired_count = number,
+--     restarts = number,
+--     working_time = number,
+-- }
+-- ```
+--
+-- where:
+--
+-- `checked_count` is a number of tuples checked for expiration (expired + skipped).
+--
+-- `expired_count` is a number of expired tuples.
+--
+-- `restarts` is a number of restarts since start. From the start
+-- `restarts` is equal to 1.
+--
+-- `working_time` is a task's operation time.
+--
+-- @function expirationd.stats
 local function expirationd_task_stats(name)
     checks('?string')
 
@@ -571,19 +839,30 @@ local function expirationd_task_stats(name)
     return retval
 end
 
-
-
--- get task by name
+--- Get task by name.
+--
+-- @string name
+--     Task name.
+--
+-- @return task instance
+--
+-- @function expirationd.task
 local function expirationd_get_task(name)
     checks('string')
 
     return get_task(name)
 end
 
--- Update expirationd version in running tarantool
--- * remove expirationd from package.loaded
--- * require new expirationd
--- * restart all tasks
+--- Reload module.
+--
+-- Update expirationd version in a running Tarantool and restart all tasks.
+-- Reload process step by step: remove expirationd module from
+-- `package.loaded`, import new version of expirationd using `require` and
+-- finally restart all tasks.
+--
+-- @return None
+--
+-- @function expirationd.update
 local function expirationd_update()
     local expd_prev = require("expirationd")
     table.clear(expd_prev)
@@ -654,3 +933,5 @@ return {
     run_task       = run_task_obsolete,
     show_task_list = show_task_list_obsolete,
 }
+
+-- }}} Module functions

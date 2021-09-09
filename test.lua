@@ -138,7 +138,7 @@ end
 -- Configure box, create spaces and indexes
 local function init_box()
     box.cfg{
-        logger = 'tarantool.log'
+        log = 'tarantool.log'
     }
     local index_type = arg[1] or os.getenv('INDEX_TYPE') or 'TREE'
     local space_type = arg[2] or os.getenv('SPACE_TYPE') or 'memtx'

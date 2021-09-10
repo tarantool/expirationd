@@ -182,7 +182,8 @@
         <br>
         <span class="parameter-description">
         <p>
-     Run task even on replica.</p>
+     expirationd doesn't work on replica by default. With option <code>force</code> it
+     should be possible to force work on replica.</p>
         </span>
         </li>
         <li><span class="parameter">full_scan_delay</span>
@@ -396,8 +397,13 @@
         <br>
         <span class="parameter-description">
         <p>
-     Factor for recalculation of vinyl space size.
-     It is allowed to pass an FFI number: <code>1LL</code>, <code>1UL</code> etc.</p>
+     Factor for recalculation of vinyl space size. Vinyl space size can't be
+     counted (since many operations, <code>upsert</code> for example, are applied when
+     you address some data), so you should count (approximate space size)
+     tuples with the first start. <code>vinyl_assumed_space_len</code> is approximate
+     count for first run and <code>vinyl_assumed_space_len_factor</code> for next
+     milestone (after we've reached next milestone is * and so on). It is
+     allowed to pass an FFI number: <code>1LL</code>, <code>1UL</code> etc.</p>
         </span>
         </li>
         <li><span class="parameter">vinyl_assumed_space_len</span>
@@ -411,7 +417,13 @@
         <span class="parameter-description">
         <p>
      Assumed size of vinyl space (in the first iteration).
-     It is allowed to pass an FFI number: <code>1LL</code>, <code>1UL</code> etc.
+     Vinyl space size can't be counted (since many operations, <code>upsert</code> for
+     example, are applied when you address some data), so you should count
+     (approximate space size) tuples with the first start.
+     <code>vinyl_assumed_space_len</code> is approximate count for first run and
+     <code>vinyl_assumed_space_len_factor</code> for next milestone (after we've reached
+     next milestone is * and so on). It is allowed to pass an FFI number:
+     <code>1LL</code>, <code>1UL</code> etc.
 </p>
         </span>
         </li>

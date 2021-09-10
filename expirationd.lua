@@ -518,17 +518,19 @@ local function expirationd_run_task(name, space_id, is_tuple_expired, options)
     return task
 end
 
-local function expirationd_run_task_obsolete(name,
+local function run_task_obsolete(name,
                               space_id,
                               is_tuple_expired,
                               process_expired_tuple,
                               args,
                               tuples_per_iteration,
                               full_scan_time)
+    log.info("expirationd.run_task() is obsolete, please consider a switching to expirationd.start()")
     return expirationd_run_task(
         name, space_id, is_tuple_expired, {
             process_expired_tuple = process_expired_tuple,
-            args = args, full_scan_time = full_scan_time,
+            args = args,
+            full_scan_time = full_scan_time,
             tuples_per_iteration = tuples_per_iteration,
             force = false,
         }
@@ -612,6 +614,31 @@ local function expirationd_update()
     end
 end
 
+local function task_stats_obsolete(...)
+    log.info("expirationd.task_stats() is obsolete, please consider a switching to expirationd.stats()")
+    return expirationd_task_stats(...)
+end
+
+local function kill_task_obsolete(...)
+    log.info("expirationd.kill_task() is obsolete, please consider a switching to expirationd.kill()")
+    return expirationd_kill_task(...)
+end
+
+local function get_task_obsolete(...)
+    log.info("expirationd.get_task() is obsolete, please consider a switching to expirationd.task()")
+    return expirationd_get_task(...)
+end
+
+local function get_tasks_obsolete(...)
+    log.info("expirationd.get_tasks() is obsolete, please consider a switching to expirationd.tasks()")
+    return expirationd_get_task(...)
+end
+
+local function show_task_list_obsolete(...)
+    log.info("expirationd.show_task_list() is obsolete, please consider a switching to expirationd.tasks()")
+    return expirationd_get_task(...)
+end
+
 return {
     start   = expirationd_run_task,
     stats   = expirationd_task_stats,
@@ -620,10 +647,10 @@ return {
     task    = expirationd_get_task,
     tasks   = expirationd_show_task_list,
     -- Obsolete function names, use previous, instead
-    task_stats     = expirationd_task_stats,
-    kill_task      = expirationd_kill_task,
-    get_task       = expirationd_get_task,
-    get_tasks      = expirationd_show_task_list,
-    run_task       = expirationd_run_task_obsolete,
-    show_task_list = expirationd_show_task_list,
+    task_stats     = task_stats_obsolete,
+    kill_task      = kill_task_obsolete,
+    get_task       = get_task_obsolete,
+    get_tasks      = get_tasks_obsolete,
+    run_task       = run_task_obsolete,
+    show_task_list = show_task_list_obsolete,
 }

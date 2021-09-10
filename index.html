@@ -127,7 +127,7 @@
         <span class="parameter-description">
         <p>
      Function, must accept tuple and return true/false (is tuple expired or
-     not), receives (args, tuple) as arguments.</p>
+     not), receives <code>args</code>, <code>tuple</code> as arguments.</p>
         </span>
         </li>
         <li><span class="parameter">options</span>
@@ -196,7 +196,7 @@
         <span class="parameter-description">
         <p>
      Sleep time between full scans (in seconds). It is allowed to pass an FFI
-     number: 1LL, 1UL etc.</p>
+     number: <code>1LL</code>, <code>1UL</code> etc.</p>
         </span>
         </li>
         <li><span class="parameter">full_scan_time</span>
@@ -240,7 +240,7 @@
         <span class="parameter-description">
         <p>
      Function which returns an iterator object which provides tuples to
-     check, considering the start_key, process_while and other options.
+     check, considering the <code>start_key</code>, <code>process_while</code> and other options.
      There's a default function which can be overriden with this parameter.</p>
         </span>
         </li>
@@ -269,7 +269,8 @@
         <span class="parameter-description">
         <p>
      Type of the iterator to use, as string or box.index constant, for
-     example, 'EQ' or box.index.EQ; default is box.index.ALL. See <a href="https://www.tarantool.io/en/doc/latest/reference/reference_lua/box_index/pairs/.">index_object:pairs()</a>.
+     example, 'EQ' or <code>box.index.EQ</code>, default is <code>box.index.ALL</code>. See
+     <a href="https://www.tarantool.io/en/doc/latest/reference/reference_lua/box_index/pairs/.">index_object:pairs()</a>.
 <p><table class="markdown_table">
 </table>
 </p>

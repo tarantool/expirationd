@@ -396,6 +396,7 @@
         <br>
         <span class="parameter-description">
         <p>
+     Factor for recalculation of vinyl space size.
      It is allowed to pass an FFI number: <code>1LL</code>, <code>1UL</code> etc.</p>
         </span>
         </li>
@@ -409,6 +410,7 @@
         <br>
         <span class="parameter-description">
         <p>
+     Assumed size of vinyl space (in the first iteration).
      It is allowed to pass an FFI number: <code>1LL</code>, <code>1UL</code> etc.
 </p>
         </span>
@@ -548,10 +550,10 @@ expirationd.start(job_name, space.id, is_expired, {
 <li><code>expired_count</code>, number of expired tuples</li>
 </ul>
 <p><ul class="markdown_list">
-<li><code>restarts</code>, number of task restarts</li>
+<li><code>restarts</code>, number of task's restarts</li>
 </ul>
 <p><ul class="markdown_list">
-<li><code>working_time</code>, task operation time</li>
+<li><code>working_time</code>, task's operation time</li>
 </ul>
 <p><table class="markdown_table">
 </table>
@@ -595,10 +597,6 @@ expirationd.start(job_name, space.id, is_expired, {
 
 
 
-    <h3>Usage:</h3>
-    <ul>
-        <pre class="example"></pre>
-    </ul>
 
 </dd>
     <dt>

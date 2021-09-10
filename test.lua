@@ -304,7 +304,7 @@ test:test('simple expires test',  function(test)
     log.info("after print archive space " .. prefix_space_id(archive_space_id), "\n")
     print_test_tuples(archive_space_id)
 
-    expirationd.tasks(true)
+    expirationd.tasks()
 
     local task = expirationd.task("test")
     test:is(task.start_time, start_time, 'checking start time')

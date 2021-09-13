@@ -197,7 +197,7 @@
         <span class="parameter-description">
         <p>
      Sleep time between full scans (in seconds). It is allowed to pass an FFI
-     number: <code>1LL</code>, <code>1UL</code> etc.</p>
+     number: <code>1LL</code>, <code>1UL</code> etc. Default value is 1 sec.</p>
         </span>
         </li>
         <li><span class="parameter">full_scan_time</span>
@@ -211,7 +211,7 @@
         <span class="parameter-description">
         <p>
      Time required for a full index scan (in seconds). It is allowed to pass
-     an FFI number: 1LL, 1UL etc.</p>
+     an FFI number: 1LL, 1UL etc. Default value is 3600.</p>
         </span>
         </li>
         <li><span class="parameter">index</span>
@@ -256,7 +256,7 @@
         <span class="parameter-description">
         <p>
      Max sleep time between iterations (in seconds). It is allowed to pass
-     an FFI number: <code>1LL</code>, <code>1UL</code> etc.</p>
+     an FFI number: <code>1LL</code>, <code>1UL</code> etc. Default value is 1 sec.</p>
         </span>
         </li>
         <li><span class="parameter">iterator_type</span>
@@ -287,7 +287,8 @@
         <br>
         <span class="parameter-description">
         <p>
-     Function to call after completing a full scan iteration.</p>
+     Function to call after completing a full scan iteration. Default value
+     is a function that do nothing.</p>
         </span>
         </li>
         <li><span class="parameter">on_full_scan_error</span>
@@ -300,7 +301,8 @@
         <br>
         <span class="parameter-description">
         <p>
-     Function to call after terminating a full scan due to an error.</p>
+     Function to call after terminating a full scan due to an error. Default
+     value is a function that do nothing.</p>
         </span>
         </li>
         <li><span class="parameter">on_full_scan_start</span>
@@ -313,7 +315,8 @@
         <br>
         <span class="parameter-description">
         <p>
-     Function to call before starting a full scan iteration.</p>
+     Function to call before starting a full scan iteration. Default value
+     is a function that do nothing.</p>
         </span>
         </li>
         <li><span class="parameter">on_full_scan_success</span>
@@ -326,7 +329,8 @@
         <br>
         <span class="parameter-description">
         <p>
-     Function to call after successfully completing a full scan iteration.</p>
+     Function to call after successfully completing a full scan iteration.
+     Default value is a function that do nothing.</p>
         </span>
         </li>
         <li><span class="parameter">process_expired_tuple</span>
@@ -383,8 +387,8 @@
         <br>
         <span class="parameter-description">
         <p>
-     Number of tuples to check in one batch (iteration). Default is 1024. It
-     is allowed to pass an FFI number: <code>1LL</code>, <code>1UL</code> etc.</p>
+     Number of tuples to check in one batch (iteration). It is allowed to
+     pass an FFI number: <code>1LL</code>, <code>1UL</code> etc. Default value is 1024.</p>
         </span>
         </li>
         <li><span class="parameter">vinyl_assumed_space_len_factor</span>
@@ -403,7 +407,7 @@
      tuples with the first start. <code>vinyl_assumed_space_len</code> is approximate
      count for first run and <code>vinyl_assumed_space_len_factor</code> for next
      milestone (after we've reached next milestone is <code>*</code> and so on). It is
-     allowed to pass an FFI number: <code>1LL</code>, <code>1UL</code> etc.</p>
+     allowed to pass an FFI number: <code>1LL</code>, <code>1UL</code> etc. Default value is 2.</p>
         </span>
         </li>
         <li><span class="parameter">vinyl_assumed_space_len</span>
@@ -423,7 +427,7 @@
      <code>vinyl_assumed_space_len</code> is approximate count for first run and
      <code>vinyl_assumed_space_len_factor</code> for next milestone (after we've reached
      next milestone is <code>*</code> and so on). It is allowed to pass an FFI number:
-     <code>1LL</code>, <code>1UL</code> etc.
+     <code>1LL</code>, <code>1UL</code> etc. Default value is 10^7.
 </p>
         </span>
         </li>

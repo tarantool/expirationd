@@ -1,5 +1,6 @@
 #!/usr/bin/env tarantool
 
+local clock = require('clock')
 local fun = require('fun')
 local log = require('log')
 local tap = require('tap')
@@ -15,6 +16,45 @@ strict.on()
 -- ========================================================================= --
 --                          local support functions                          --
 -- ========================================================================= --
+
+-- Strip pcall()'s true or re-raise catched error.
+local function wait_cond_finish(status, ...)
+    if not status then
+        error((...), 2)
+     end
+
+     return ...
+end
+
+-- Block until the condition function returns a positive value
+-- (anything except `nil` and `false`) or until the timeout
+-- exceeds. Return the result of the last invocation of the
+-- condition function (it is `false` or `nil` in case of exiting
+-- by the timeout).
+--
+-- If the condition function raises a Lua error, wait_cond()
+-- continues retrying. If the latest attempt raises an error (and
+-- we hit a timeout), the error will be re-raised.
+local function wait_cond(cond, timeout, delay)
+    assert(type(cond) == 'function')
+
+    local timeout = timeout or 60
+    local delay = delay or 0.001
+
+    local start_time = clock.monotonic()
+    local res = {pcall(cond)}
+
+    while not res[1] or not res[2] do
+        local work_time = clock.monotonic() - start_time
+        if work_time > timeout then
+            return wait_cond_finish(res[1], res[2])
+        end
+        fiber.sleep(delay)
+        res = {pcall(cond)}
+    end
+
+    return wait_cond_finish(res[1], res[2])
+end
 
 -- get field
 local function get_field(tuple, field_no)
@@ -419,11 +459,14 @@ test:test("multiple expires test", function(test)
     local tuples_count = 10
     local time = fiber.time()
     local space_name = 'exp_test'
-    local expire_delta = 2
+    local expire_delta = 0.5
 
     for i = 1, tuples_count do
         box.space[space_name]:delete{i}
-        box.space[space_name]:insert{i, get_email(i), time + expire_delta}
+        if i <= tuples_count / 2 then
+            time = time + expire_delta
+        end
+        box.space[space_name]:insert{i, get_email(i), time}
     end
 
     expirationd.start(
@@ -441,15 +484,26 @@ test:test("multiple expires test", function(test)
         }
     )
     -- test first expire part
-    fiber.sleep(1 + expire_delta)
-    local task = expirationd.task("test")
-    local cnt = task.expired_tuples_count
-    test:ok(cnt < tuples_count and cnt > 0, 'First part expires done')
+    local res = wait_cond(
+        function()
+            local task = expirationd.task("test")
+            local cnt = task.expired_tuples_count
+            return cnt < tuples_count and cnt > 0
+        end,
+        2 + expire_delta
+    )
+    test:ok(res, true, 'First part expires done')
 
     -- test second expire part
-    fiber.sleep(1)
-    test:is(expirationd.task("test").expired_tuples_count,
-            tuples_count, 'Multiple expires done')
+    res = wait_cond(
+        function()
+            local task = expirationd.task("test")
+            local cnt = task.expired_tuples_count
+            return cnt == tuples_count
+        end,
+        4
+    )
+    test:ok(res, true, 'Multiple expires done')
     expirationd.kill("test")
 end)
 
@@ -459,8 +513,9 @@ test:test("default drop function test", function(test)
     local space_name = 'drop_test'
     local space = box.space[space_name]
     for i = 1, tuples_count do
-        space:insert{i, 'test_data', fiber.time() + 2}
+        space:insert{i, 'test_data', fiber.time()}
     end
+    test:is(space:count{}, tuples_count, 'tuples are in space')
 
     expirationd.start(
         "test",
@@ -476,9 +531,14 @@ test:test("default drop function test", function(test)
         }
     )
 
-    test:is(space:count{}, tuples_count, 'tuples are in space')
-    fiber.sleep(3)
-    test:is(space:count{}, 0, 'all tuples are expired with default function')
+    local task = expirationd.task("test")
+    local res = wait_cond(
+        function()
+            return space:count{} == 0
+        end,
+        2
+    )
+    test:is(res, true, 'all tuples are expired with default function')
     expirationd.kill("test")
 end)
 
@@ -658,10 +718,10 @@ test:test('delays and scan callbacks test', function(test)
                 if first_iteration_done then
                     cond:signal()
                 else
-                    -- Check the iteration delay with an accuracy
-                    -- of 0.1 seconds.
+                    -- Check the accuracy of iteration delay,
+                    -- it should be not beyond 1 second.
                     test:ok(math.abs(complete_time - start_time -
-                        iteration_delay) < 0.1, 'test iteration delay')
+                        iteration_delay) < 1, 'test iteration delay')
                     first_iteration_done = true
                 end
             end

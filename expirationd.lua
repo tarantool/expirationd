@@ -113,7 +113,7 @@ local function default_do_worker_iteration(task)
         if checked_tuples_count >= task.tuples_per_iteration then
             if task.atomic_iteration then
                 box.commit()
-                if task.worker_canceled then
+                if task.worker_cancelled then
                     return true
                 end
             end
@@ -144,13 +144,13 @@ local function worker_loop(task)
     fiber.name(string.format("worker of %q", task.name), { truncate = true })
 
     while true do
-        if task.worker_canceled then
+        if task.worker_cancelled then
             fiber.self():cancel()
         end
         if (box.cfg.replication_source == nil and box.cfg.replication == nil) or task.force then
             task.on_full_scan_start(task)
             local state, err = pcall(task.do_worker_iteration, task)
-            if task.worker_canceled then
+            if task.worker_cancelled then
                 fiber.self():cancel()
             end
             if state then
@@ -213,7 +213,7 @@ local Task_methods = {
         end
         if (get_fiber_id(self.worker_fiber) ~= 0) then
             if self.atomic_iteration then
-                self.worker_canceled = true
+                self.worker_cancelled = true
             else
                 self.worker_fiber:cancel()
             end
@@ -257,7 +257,7 @@ local function create_task(name)
         args                  = nil,
         index                 = nil,
         iterate_with          = nil,
-        worker_canceled       = false,
+        worker_cancelled      = false,
         iteration_delay                = constants.max_delay,
         full_scan_delay                = constants.max_delay,
         tuples_per_iteration           = constants.default_tuples_per_iteration,

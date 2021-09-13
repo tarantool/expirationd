@@ -6,10 +6,15 @@ PROJECT_DIR := $(patsubst %/,%,$(dir $(MAKEFILE_PATH)))
 LUACOV_REPORT := $(PROJECT_DIR)/luacov.report.out
 LUACOV_STATS := $(PROJECT_DIR)/luacov.stats.out
 
+SHELL := $(shell which bash) # Required for brace expansion used in a clean target.
+
 CLEANUP_FILES  = tarantool.log
-CLEANUP_FILES += *.xlog*
+CLEANUP_FILES += *.index
+CLEANUP_FILES += *.run
 CLEANUP_FILES += *.snap
-CLEANUP_FILES += 51{2,3,4,5,6,7}  #  Directories that vinyl creates.
+CLEANUP_FILES += *.vylog
+CLEANUP_FILES += *.xlog
+CLEANUP_FILES += 51{2,3,4,5,6,7,8,9}  #  Directories that vinyl creates.
 
 all: test
 

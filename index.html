@@ -32,7 +32,7 @@
 
 <h2>Contents</h2>
 <ul>
-<li><a href="#Functions">Functions</a></li>
+<li><a href="#Instance_methods">Instance methods </a></li>
 </ul>
 
 
@@ -52,8 +52,28 @@
 </p>
 
 
-<h2><a href="#Functions">Functions</a></h2>
+<h2><a href="#Instance_methods">Instance methods </a></h2>
 <table class="function_list">
+	<tr>
+	<td class="name" nowrap><a href="#instance.start">instance.start (self)</a></td>
+	<td class="summary">Start a task.</td>
+	</tr>
+	<tr>
+	<td class="name" nowrap><a href="#instance.stop">instance.stop (self)</a></td>
+	<td class="summary">Stop a task.</td>
+	</tr>
+	<tr>
+	<td class="name" nowrap><a href="#instance.restart">instance.restart (self)</a></td>
+	<td class="summary">Restart a task.</td>
+	</tr>
+	<tr>
+	<td class="name" nowrap><a href="#instance.kill">instance.kill (self)</a></td>
+	<td class="summary">Kill a task.</td>
+	</tr>
+	<tr>
+	<td class="name" nowrap><a href="#instance.statistics">instance.statistics (self)</a></td>
+	<td class="summary">Get a statistics about a task.</td>
+	</tr>
 	<tr>
 	<td class="name" nowrap><a href="#start">start (name, space_id, is_tuple_expired[, options])</a></td>
 	<td class="summary">Run a scheduled task to check and process (expire) tuples in a given space.</td>
@@ -84,9 +104,186 @@
 <br/>
 
 
-    <h2 class="section-header "><a name="Functions"></a>Functions</h2>
+    <h2 class="section-header "><a name="Instance_methods"></a>Instance methods </h2>
 
-    <dl class="function ">
+    <dl class="function Methods">
+    <dt>
+    <a name="instance.start"></a>
+    <strong>instance.start (self)</strong>
+    </dt>
+    <dd>
+    <p>Start a task. <table class="markdown_table">
+</table>
+</p>
+
+
+    <h3>Parameters:</h3>
+    <ul>
+        <li><span class="parameter">self</span>
+        <br>
+        <span class="parameter-description">
+        <p>
+     Task instance.
+<p> Force start <code>task</code> (old <code>guardian_fiber</code> will be garbage
+ collected, so do <code>task:stop()</code> before or <code>task:restart()</code> instead).
+</p>
+        </span>
+        </li>
+    </ul>
+
+    <h3>Returns:</h3>
+    <ol>
+
+        None
+    </ol>
+
+
+
+
+</dd>
+    <dt>
+    <a name="instance.stop"></a>
+    <strong>instance.stop (self)</strong>
+    </dt>
+    <dd>
+    <p>Stop a task. <table class="markdown_table">
+</table>
+</p>
+
+
+    <h3>Parameters:</h3>
+    <ul>
+        <li><span class="parameter">self</span>
+        <br>
+        <span class="parameter-description">
+        <p>
+     Task instance.
+</p>
+        </span>
+        </li>
+    </ul>
+
+    <h3>Returns:</h3>
+    <ol>
+
+        None
+    </ol>
+
+
+
+
+</dd>
+    <dt>
+    <a name="instance.restart"></a>
+    <strong>instance.restart (self)</strong>
+    </dt>
+    <dd>
+    <p>Restart a task. <table class="markdown_table">
+</table>
+</p>
+
+
+    <h3>Parameters:</h3>
+    <ul>
+        <li><span class="parameter">self</span>
+        <br>
+        <span class="parameter-description">
+        <p>
+     Task instance.
+</p>
+        </span>
+        </li>
+    </ul>
+
+    <h3>Returns:</h3>
+    <ol>
+
+        None
+    </ol>
+
+
+
+
+</dd>
+    <dt>
+    <a name="instance.kill"></a>
+    <strong>instance.kill (self)</strong>
+    </dt>
+    <dd>
+    <p>Kill a task. <table class="markdown_table">
+</table>
+<p>
+ Stop a task and delete it from list of tasks.
+</p>
+
+
+    <h3>Parameters:</h3>
+    <ul>
+        <li><span class="parameter">self</span>
+        <br>
+        <span class="parameter-description">
+        <p>
+     Task instance.
+</p>
+        </span>
+        </li>
+    </ul>
+
+    <h3>Returns:</h3>
+    <ol>
+
+        None
+    </ol>
+
+
+
+
+</dd>
+    <dt>
+    <a name="instance.statistics"></a>
+    <strong>instance.statistics (self)</strong>
+    </dt>
+    <dd>
+    <p>Get a statistics about a task. <table class="markdown_table">
+</table>
+</p>
+
+
+    <h3>Parameters:</h3>
+    <ul>
+        <li><span class="parameter">self</span>
+        <br>
+        <span class="parameter-description">
+        <p>
+     Task instance.
+</p>
+        </span>
+        </li>
+    </ul>
+
+    <h3>Returns:</h3>
+    <ol>
+
+         Response of the following structure:
+<p><pre> {
+     checked_count = number,
+     expired_count = number,
+     restarts = number,
+     working_time = number,
+ }</pre>
+<p>
+ <code>checked_count</code> is a number of tuples checked for expiration.
+<p> <code>expired_count</code> is a number of expired tuples.
+<p> <code>restarts</code> is a number of restarts since start. From the start
+ <code>restarts</code> is equal to 1.
+<p> <code>working_time</code> is a time since start of task.
+
+    </ol>
+
+
+
+
+</dd>
     <dt>
     <a name="start"></a>
     <strong>start (name, space_id, is_tuple_expired[, options])</strong>
@@ -464,6 +661,7 @@ box.cfg{}
 
 expirationd.start(job_name, space.id, is_expired, {
     process_expired_tuple = delete_tuple,
+    args = <span class="keyword">nil</span>,
     tuples_per_iteration = <span class="number">50</span>,
     full_scan_time = <span class="number">3600</span>
 })</pre>

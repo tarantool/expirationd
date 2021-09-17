@@ -3,7 +3,7 @@
 <html>
 <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
 <head>
-    <title>topology API reference</title>
+    <title>expirationd API reference</title>
     <link rel="stylesheet" href="ldoc.css" type="text/css" />
 </head>
 <body>
@@ -32,7 +32,8 @@
 
 <h2>Contents</h2>
 <ul>
-<li><a href="#Instance_methods">Instance methods </a></li>
+<li><a href="#Task_methods">Task methods </a></li>
+<li><a href="#Module_methods">Module methods </a></li>
 </ul>
 
 
@@ -52,28 +53,31 @@
 </p>
 
 
-<h2><a href="#Instance_methods">Instance methods </a></h2>
+<h2><a href="#Task_methods">Task methods </a></h2>
 <table class="function_list">
 	<tr>
-	<td class="name" nowrap><a href="#instance.start">instance.start (self)</a></td>
+	<td class="name" nowrap><a href="#task.start">task.start (self)</a></td>
 	<td class="summary">Start a task.</td>
 	</tr>
 	<tr>
-	<td class="name" nowrap><a href="#instance.stop">instance.stop (self)</a></td>
+	<td class="name" nowrap><a href="#task.stop">task.stop (self)</a></td>
 	<td class="summary">Stop a task.</td>
 	</tr>
 	<tr>
-	<td class="name" nowrap><a href="#instance.restart">instance.restart (self)</a></td>
+	<td class="name" nowrap><a href="#task.restart">task.restart (self)</a></td>
 	<td class="summary">Restart a task.</td>
 	</tr>
 	<tr>
-	<td class="name" nowrap><a href="#instance.kill">instance.kill (self)</a></td>
+	<td class="name" nowrap><a href="#task.kill">task.kill (self)</a></td>
 	<td class="summary">Kill a task.</td>
 	</tr>
 	<tr>
-	<td class="name" nowrap><a href="#instance.statistics">instance.statistics (self)</a></td>
+	<td class="name" nowrap><a href="#task.statistics">task.statistics (self)</a></td>
 	<td class="summary">Get a statistics about a task.</td>
 	</tr>
+</table>
+<h2><a href="#Module_methods">Module methods </a></h2>
+<table class="function_list">
 	<tr>
 	<td class="name" nowrap><a href="#start">start (name, space_id, is_tuple_expired[, options])</a></td>
 	<td class="summary">Run a scheduled task to check and process (expire) tuples in a given space.</td>
@@ -96,7 +100,7 @@
 	</tr>
 	<tr>
 	<td class="name" nowrap><a href="#update">update ()</a></td>
-	<td class="summary">Update expirationd version in a running Tarantool and restart all tasks.</td>
+	<td class="summary">Reload module.</td>
 	</tr>
 </table>
 
@@ -104,12 +108,12 @@
 <br/>
 
 
-    <h2 class="section-header "><a name="Instance_methods"></a>Instance methods </h2>
+    <h2 class="section-header "><a name="Task_methods"></a>Task methods </h2>
 
     <dl class="function Methods">
     <dt>
-    <a name="instance.start"></a>
-    <strong>instance.start (self)</strong>
+    <a name="task.start"></a>
+    <strong>task.start (self)</strong>
     </dt>
     <dd>
     <p>Start a task. <table class="markdown_table">
@@ -142,8 +146,8 @@
 
 </dd>
     <dt>
-    <a name="instance.stop"></a>
-    <strong>instance.stop (self)</strong>
+    <a name="task.stop"></a>
+    <strong>task.stop (self)</strong>
     </dt>
     <dd>
     <p>Stop a task. <table class="markdown_table">
@@ -174,8 +178,8 @@
 
 </dd>
     <dt>
-    <a name="instance.restart"></a>
-    <strong>instance.restart (self)</strong>
+    <a name="task.restart"></a>
+    <strong>task.restart (self)</strong>
     </dt>
     <dd>
     <p>Restart a task. <table class="markdown_table">
@@ -206,8 +210,8 @@
 
 </dd>
     <dt>
-    <a name="instance.kill"></a>
-    <strong>instance.kill (self)</strong>
+    <a name="task.kill"></a>
+    <strong>task.kill (self)</strong>
     </dt>
     <dd>
     <p>Kill a task. <table class="markdown_table">
@@ -240,8 +244,8 @@
 
 </dd>
     <dt>
-    <a name="instance.statistics"></a>
-    <strong>instance.statistics (self)</strong>
+    <a name="task.statistics"></a>
+    <strong>task.statistics (self)</strong>
     </dt>
     <dd>
     <p>Get a statistics about a task. <table class="markdown_table">
@@ -272,11 +276,11 @@
      working_time = number,
  }</pre>
 <p>
- <code>checked_count</code> is a number of tuples checked for expiration.
+ where:
+<p> <code>checked_count</code> is a number of tuples checked for expiration (expired + skipped).
 <p> <code>expired_count</code> is a number of expired tuples.
-<p> <code>restarts</code> is a number of restarts since start. From the start
- <code>restarts</code> is equal to 1.
-<p> <code>working_time</code> is a time since start of task.
+<p> <code>restarts</code> is a number of restarts since start. From the start <code>restarts</code> is equal to 1.
+<p> <code>working_time</code> is a task's operation time.
 
     </ol>
 
@@ -284,6 +288,10 @@
 
 
 </dd>
+</dl>
+    <h2 class="section-header "><a name="Module_methods"></a>Module methods </h2>
+
+    <dl class="function Functions">
     <dt>
     <a name="start"></a>
     <strong>start (name, space_id, is_tuple_expired[, options])</strong>
@@ -696,7 +704,7 @@ expirationd.start(job_name, space.id, is_expired, {
     <h3>Returns:</h3>
     <ol>
 
-        nil
+        None
     </ol>
 
 
@@ -717,7 +725,15 @@ expirationd.start(job_name, space.id, is_expired, {
     <h3>Returns:</h3>
     <ol>
 
-        table
+         Response of the following structure:
+<p><pre> {
+     "expirationd-1"
+     "expirationd-2",
+     "expirationd-3",
+ }</pre>
+<p>
+ Each item in response is a task name.
+
     </ol>
 
 
@@ -756,21 +772,20 @@ expirationd.start(job_name, space.id, is_expired, {
     <h3>Returns:</h3>
     <ol>
 
-         table with following keys:
-<p><ul class="markdown_list">
-<li><code>checked_count</code>, number of checked tuples (expired + skipped)</li>
-</ul>
-<p><ul class="markdown_list">
-<li><code>expired_count</code>, number of expired tuples</li>
-</ul>
-<p><ul class="markdown_list">
-<li><code>restarts</code>, number of task's restarts</li>
-</ul>
-<p><ul class="markdown_list">
-<li><code>working_time</code>, task's operation time</li>
-</ul>
-<p><table class="markdown_table">
-</table>
+         Response of the following structure:
+<p><pre> {
+     checked_count = number,
+     expired_count = number,
+     restarts = number,
+     working_time = number,
+ }</pre>
+<p>
+ where:
+<p> <code>checked_count</code> is a number of tuples checked for expiration (expired + skipped).
+<p> <code>expired_count</code> is a number of expired tuples.
+<p> <code>restarts</code> is a number of restarts since start. From the start
+ <code>restarts</code> is equal to 1.
+<p> <code>working_time</code> is a task's operation time.
 
     </ol>
 
@@ -806,7 +821,77 @@ expirationd.start(job_name, space.id, is_expired, {
     <h3>Returns:</h3>
     <ol>
 
-        table
+         Response of the following structure:
+<p><pre> {
+     atomic_iteration = false,
+     checked_tuples_count = 0,
+     do_worker_iteration = function: 0x4180cb68,
+     expired_tuples_count = 0,
+     full_scan_delay = 1,
+     full_scan_time = 3600,
+     guardian_fiber = fiber: 122,
+     index = {
+         hint = true,
+         id = 0,
+         name = "primary",
+         parts = {{fieldno = 1, is_nullable = false, type = "number"}},
+         space_id = 512,
+         type = "TREE",
+         unique = true,
+     },
+     is_tuple_expired = function: 0x40781db8,
+     iterate_with = function: 0x4188ae78,
+     iteration_delay = 1,
+     iterator_type = "ALL",
+     name = "expirationd-2",
+     on_full_scan_complete = function: 0x40972568,
+     on_full_scan_error = function: 0x40972568,
+     on_full_scan_start = function: 0x40972568,
+     on_full_scan_success = function: 0x40972568,
+     process_expired_tuple = function: 0x4188ae38,
+     process_while = function: 0x4148f4c8,
+     restarts = 1,
+     space_id = 512,
+     start_key = function: 0x40994c48,
+     start_time = 1631818716.1123,
+     tuples_per_iteration = 1024,
+     vinyl_assumed_space_len = 10000000,
+     vinyl_assumed_space_len_factor = 2,
+     worker_cancelled = false,
+     worker_fiber = fiber: 123,
+ }</pre>
+<p>
+ where:
+<p> <code>atomic_iteration</code> is a boolean value (<span class="xxx">XXX</span>).
+<p> <code>checked_tuples_count</code> is a number of processed tuples.
+<p> <code>do_worker_iteration</code> is a function (<span class="xxx">XXX</span>).
+<p> <code>expired_tuples_count</code> is a number of expired tuples.
+<p> <code>full_scan_delay</code> is a number (<span class="xxx">XXX</span>).
+<p> <code>full_scan_time</code> is a number (<span class="xxx">XXX</span>).
+<p> <code>guardian_fiber</code> is a fiber id (<span class="xxx">XXX</span>).
+<p> <code>index</code> is an index used for iteration of tuples.
+<p> <code>is_tuple_expired</code> is a function (<span class="xxx">XXX</span>).
+<p> <code>iterate_with</code> is a function (<span class="xxx">XXX</span>).
+<p> <code>iteration_delay</code> is a number (<span class="xxx">XXX</span>).
+<p> <code>iterator_type</code> = "ALL" (<span class="xxx">XXX</span>).
+<p> <code>name</code> is a string with name of task.
+<p> <code>on_full_scan_complete</code> is a function (<span class="xxx">XXX</span>).
+<p> <code>on_full_scan_error</code> is a function (<span class="xxx">XXX</span>).
+<p> <code>on_full_scan_start</code> is a function (<span class="xxx">XXX</span>).
+<p> <code>on_full_scan_success</code> is a function (<span class="xxx">XXX</span>).
+<p> <code>process_expired_tuple</code> is a function (<span class="xxx">XXX</span>).
+<p> <code>process_while</code> is a function (<span class="xxx">XXX</span>).
+<p> <code>restarts</code> is a number of restarts.
+<p> <code>space_id</code> is a space id, where task processes tuples.
+<p> <code>start_key</code> is a function (<span class="xxx">XXX</span>).
+<p> <code>start_time</code> is a time when task starts.
+<p> <code>tuples_per_iteration</code> is a max number of tuples that task can process on
+  each iteration.
+<p> <code>vinyl_assumed_space_len</code> is a number (<span class="xxx">XXX</span>).
+<p> <code>vinyl_assumed_space_len_factor</code> is a number (<span class="xxx">XXX</span>).
+<p> <code>worker_cancelled</code> is a boolean value (<span class="xxx">XXX</span>).
+<p> <code>worker_fiber</code> is a fiber id.
+
     </ol>
 
 
@@ -818,20 +903,12 @@ expirationd.start(job_name, space.id, is_expired, {
     <strong>update ()</strong>
     </dt>
     <dd>
-    <p>Update expirationd version in a running Tarantool and restart all tasks. <table class="markdown_table">
+    <p>Reload module. <table class="markdown_table">
 </table>
 <p>
-<ul class="markdown_list">
-<li>remove expirationd from <code>package.loaded</code></li>
-</ul>
-<p><ul class="markdown_list">
-<li>require a new expirationd</li>
-</ul>
-<p><ul class="markdown_list">
-<li>restart all tasks</li>
-</ul>
-<p><table class="markdown_table">
-</table>
+ Update expirationd version in a running Tarantool and restart all tasks.
+ Step by step: remove expirationd module from <code>package.loaded</code>, import new
+ version of expirationd using <code>require</code> and finally restart all tasks.
 </p>
 
 
@@ -839,7 +916,7 @@ expirationd.start(job_name, space.id, is_expired, {
     <h3>Returns:</h3>
     <ol>
 
-        nil
+        None
     </ol>
 
 

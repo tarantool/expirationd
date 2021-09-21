@@ -4,12 +4,18 @@ local g = t.group("iterator_type")
 
 local helpers = require("test.helper")
 
-g.before_all(function()
-    helpers.init_spaces(g)
+g.before_each(function()
+    g.tree = helpers.create_space_with_tree_index()
+    g.hash = helpers.create_space_with_hash_index()
+    g.bitset = helpers.create_space_with_bitset_index()
+    g.vinyl = helpers.create_space_with_vinyl()
 end)
 
 g.after_each(function()
-    helpers.truncate_spaces(g)
+    g.tree:drop()
+    g.hash:drop()
+    g.bitset:drop()
+    g.vinyl:drop()
 end)
 
 function g.test_passing_errors_tree_index()

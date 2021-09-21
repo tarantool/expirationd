@@ -3,15 +3,7 @@ local fio = require("fio")
 
 local helpers = require("luatest.helpers")
 
-t.before_suite(function()
-    t.datadir = fio.tempdir()
-    box.cfg{
-        wal_dir    = t.datadir,
-        memtx_dir  = t.datadir,
-        vinyl_dir  = t.datadir,
-        vinyl_memory = 1024,
-    }
-
+local function create_space(space_name)
     local space_format = {
         {name = "id", type = "number"},
         {name = "first_name", type = "string"},
@@ -23,71 +15,97 @@ t.before_suite(function()
         {name = "functional_field", is_nullable = true},
     }
 
-    local tree = box.schema.create_space("tree", { if_not_exists = true })
-    tree:format(space_format)
-    tree:create_index("primary", {type = "TREE", parts={ 1 }})
-    tree:create_index("index_for_first_name", {type = "TREE", parts={ 2 }})
-    tree:create_index("multipart_index", {type = "TREE", parts={ {3, is_nullable = true}, {4, is_nullable = true} }})
-    tree:create_index("non_unique_index", {type = "TREE", parts={ {5, is_nullable = true} }, unique = false})
+    local options = {}
+    if space_name == "vinyl" then
+        options.engine = "vinyl"
+    end
+    local space = box.schema.create_space(space_name, options)
+    space:format(space_format)
 
-    local hash = box.schema.create_space("hash", { if_not_exists = true })
-    hash:format(space_format)
-    hash:create_index("primary", {type = "HASH", parts={ 1 }} )
-    hash:create_index("index_for_first_name", {type = "HASH", parts={ 2 }} )
-    hash:create_index("multipart_index", {type = "HASH", parts={ {1}, {2} }})
+    return space
+end
 
-    local vinyl = box.schema.create_space("vinyl", { if_not_exists = true, engine = "vinyl" })
-    vinyl:format(space_format)
-    vinyl:create_index("primary", {type = "TREE", parts={ 1 }})
-    vinyl:create_index("index_for_first_name", {type = "TREE", parts={ 2 }})
-    vinyl:create_index("multipart_index", {type = "TREE", parts={ {3, is_nullable = true}, {4, is_nullable = true} }})
-    vinyl:create_index("non_unique_index", {type = "TREE", parts={ {5} }, unique = false })
+function helpers.create_space_with_tree_index()
+    local space = create_space("tree")
+    space:create_index("primary", {type = "TREE", parts={ 1 }})
+    space:create_index("index_for_first_name", {type = "TREE", parts={ 2 }})
+    space:create_index("multipart_index", {type = "TREE", parts={ {3, is_nullable = true}, {4, is_nullable = true} }})
+    space:create_index("non_unique_index", {type = "TREE", parts={ {5, is_nullable = true} }, unique = false})
 
     if _TARANTOOL >= "2" then
-        local tree_code = [[function(tuple)
-            if tuple[8] then
-                return {string.sub(tuple[8],2,2)}
-            end
-            return {tuple[2]}
-        end]]
-        box.schema.func.create("tree_func",
-                {body = tree_code, is_deterministic = true, is_sandboxed = true})
-        tree:create_index("json_path_index",
+        space:create_index("json_path_index",
                 {type = "TREE", parts = { {6, type = "scalar", path = "age", is_nullable = true} }})
-        tree:create_index("multikey_index",
+        space:create_index("multikey_index",
                 {type = "TREE", parts = { {7, type = "str", path = "data[*].name"} }} )
-        tree:create_index("functional_index",
+        space:create_index("functional_index",
                 {type = "TREE", parts={ {1, type = "string"} }, func = "tree_func"})
+    end
 
-        vinyl:create_index("json_path_index",
+    return space
+end
+
+function helpers.create_space_with_vinyl()
+    local space = create_space("vinyl")
+    space:create_index("primary", {type = "TREE", parts={ 1 }})
+    space:create_index("index_for_first_name", {type = "TREE", parts={ 2 }})
+    space:create_index("multipart_index", {type = "TREE", parts={ {3, is_nullable = true}, {4, is_nullable = true} }})
+    space:create_index("non_unique_index", {type = "TREE", parts={ {5} }, unique = false })
+
+    if _TARANTOOL >= "2" then
+        space:create_index("json_path_index",
                 {type = "TREE", parts = { {6, type = "scalar", path = "age", is_nullable = true} }})
-        vinyl:create_index("multikey_index",
+        space:create_index("multikey_index",
                 {type = "TREE", parts = { {7, type = "str", path = "data[*].name", is_nullable = true} }})
     end
 
-    local bitset = box.schema.create_space("bitset", { if_not_exists = true })
-    bitset:format(space_format)
-    bitset:create_index("primary", {type = "TREE", parts={ 1 }})
-    bitset:create_index("index_for_first_name",
+    return space
+end
+
+function helpers.create_space_with_hash_index()
+    local space = create_space("hash")
+    space:create_index("primary", {type = "HASH", parts={ 1 }} )
+    space:create_index("index_for_first_name", {type = "HASH", parts={ 2 }} )
+    space:create_index("multipart_index", {type = "HASH", parts={ {1}, {2} }})
+
+    return space
+end
+
+function helpers.create_space_with_bitset_index()
+    local space = create_space("bitset")
+    space:create_index("primary", {type = "TREE", parts={ 1 }})
+    space:create_index("index_for_first_name",
             {type = "BITSET", parts={ {field = 2, type = "string"} }, unique = false})
-end)
+
+    return space
+end
 
 t.after_suite(function()
     fio.rmtree(t.datadir)
 end)
 
-function helpers.init_spaces(g)
-    g.tree = box.space.tree
-    g.hash = box.space.hash
-    g.vinyl = box.space.vinyl
-    g.bitset = box.space.bitset
-end
+t.before_suite(function()
+    t.datadir = fio.tempdir()
+    box.cfg{
+        wal_dir    = t.datadir,
+        memtx_dir  = t.datadir,
+        vinyl_dir  = t.datadir,
+        vinyl_memory = 1024,
+    }
 
-function helpers.truncate_spaces(g)
-    g.tree:truncate()
-    g.hash:truncate()
-    g.vinyl:truncate()
-end
+    local tree_code = [[function(tuple)
+        if tuple[8] then
+            return {string.sub(tuple[8],2,2)}
+        end
+        return {tuple[2]}
+    end]]
+    if _TARANTOOL >= "2" then
+        box.schema.func.create("tree_func", {
+            body = tree_code,
+            is_deterministic = true,
+            is_sandboxed = true
+        })
+    end
+end)
 
 function helpers.is_expired_true()
     return true

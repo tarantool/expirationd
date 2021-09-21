@@ -29,7 +29,7 @@ function g.test_passing()
             {atomic_iteration = 1})
 end
 
-function g.test_memtx()
+local function test_memtx(space)
     helpers.iteration_result = {}
 
     local transactions = {}
@@ -50,74 +50,80 @@ function g.test_memtx()
         box.on_commit(f)
     end
 
-    for _, space in pairs({g.tree, g.hash}) do
-        -- tuples expired in one atomic_iteration
-        space:insert({1, "3"})
-        space:insert({2, "2"})
-        space:insert({3, "1"})
+    -- tuples expired in one atomic_iteration
+    space:insert({1, "3"})
+    space:insert({2, "2"})
+    space:insert({3, "1"})
 
 
-        local task = expirationd.start("clean_all", space.id, helpers.is_expired_debug,
-                {atomic_iteration = true})
-        -- wait for tuples expired
-        helpers.retrying({}, function()
-            if space.index[0].type == "HASH" then
-                t.assert_equals(helpers.iteration_result, {{3, "1"}, {2, "2"}, {1, "3"}})
-            else
-                t.assert_equals(helpers.iteration_result, {{1, "3"}, {2, "2"}, {3, "1"}})
-            end
-        end)
-        task:kill()
-        helpers.iteration_result = {}
-
-        -- check out three row transaction
+    local task = expirationd.start("clean_all", space.id, helpers.is_expired_debug,
+            {atomic_iteration = true})
+    -- wait for tuples expired
+    helpers.retrying({}, function()
         if space.index[0].type == "HASH" then
-            t.assert_equals(transactions, {
-                { {3, "1"}, {2, "2"}, {1, "3"} }
-            })
+            t.assert_equals(helpers.iteration_result, {{3, "1"}, {2, "2"}, {1, "3"}})
         else
-            t.assert_equals(transactions, {
-                { {1, "3"}, {2, "2"}, {3, "1"} }
-            })
+            t.assert_equals(helpers.iteration_result, {{1, "3"}, {2, "2"}, {3, "1"}})
         end
-        transactions = {}
+    end)
+    task:kill()
+    helpers.iteration_result = {}
 
-        -- tuples expired in two atomic_iteration
-        space:insert({1, "3"})
-        space:insert({2, "2"})
-        space:insert({3, "1"})
-
-        task = expirationd.start("clean_all", space.id, helpers.is_expired_debug,
-                {atomic_iteration = true, tuples_per_iteration = 2})
-        -- wait for tuples expired
-        -- 2 seconds because suspend will be yield in task
-        helpers.retrying({}, function()
-            if space.index[0].type == "HASH" then
-                t.assert_equals(helpers.iteration_result, {{3, "1"}, {2, "2"}, {1, "3"}})
-            else
-                t.assert_equals(helpers.iteration_result, {{1, "3"}, {2, "2"}, {3, "1"}})
-            end
-        end)
-        task:kill()
-        helpers.iteration_result = {}
-
-        if space.index[0].type == "HASH" then
-            t.assert_equals(transactions, {
-                { {3, "1"}, {2, "2"} }, -- check two row transaction
-                { {1, "3"} }            -- check single row transactions
-            })
-        else
-            t.assert_equals(transactions, {
-                { {1, "3"}, {2, "2"} }, -- check two row transaction
-                { {3, "1"} }            -- check single row transactions
-            })
-        end
-
-        transactions = {}
+    -- check out three row transaction
+    if space.index[0].type == "HASH" then
+        t.assert_equals(transactions, {
+            { {3, "1"}, {2, "2"}, {1, "3"} }
+        })
+    else
+        t.assert_equals(transactions, {
+            { {1, "3"}, {2, "2"}, {3, "1"} }
+        })
     end
+    transactions = {}
+
+    -- tuples expired in two atomic_iteration
+    space:insert({1, "3"})
+    space:insert({2, "2"})
+    space:insert({3, "1"})
+
+    task = expirationd.start("clean_all", space.id, helpers.is_expired_debug,
+            {atomic_iteration = true, tuples_per_iteration = 2})
+    -- wait for tuples expired
+    -- 2 seconds because suspend will be yield in task
+    helpers.retrying({}, function()
+        if space.index[0].type == "HASH" then
+            t.assert_equals(helpers.iteration_result, {{3, "1"}, {2, "2"}, {1, "3"}})
+        else
+            t.assert_equals(helpers.iteration_result, {{1, "3"}, {2, "2"}, {3, "1"}})
+        end
+    end)
+    task:kill()
+    helpers.iteration_result = {}
+
+    if space.index[0].type == "HASH" then
+        t.assert_equals(transactions, {
+            { {3, "1"}, {2, "2"} }, -- check two row transaction
+            { {1, "3"} }            -- check single row transactions
+        })
+    else
+        t.assert_equals(transactions, {
+            { {1, "3"}, {2, "2"} }, -- check two row transaction
+            { {3, "1"} }            -- check single row transactions
+        })
+    end
+
+    transactions = {}
 
     -- unmock
     box.begin = true_box_begin
+end
+
+function g.test_memtx_tree_index()
+    test_memtx(g.tree)
+end
+
+function g.test_memtx_hash_index()
+    test_memtx(g.hash)
 end
 
 -- it's not check tarantool or vinyl as engine

@@ -53,60 +53,66 @@ function g.test_passing()
             { index = "multipart_index", start_key = {1, ""} })
 end
 
+local function test_tree_index(space)
+    -- without start key
+    helpers.iteration_result = {}
+    space:insert({1, "3"})
+    space:insert({2, "2"})
+    space:insert({3, "1"})
+
+    local task = expirationd.start("clean_all", space.id, helpers.is_expired_debug)
+    -- wait for tuples expired
+    helpers.retrying({}, function()
+        t.assert_equals(helpers.iteration_result, {
+            {1, "3"},
+            {2, "2"},
+            {3, "1"}
+        })
+    end)
+    task:kill()
+
+    -- box.NULL
+    helpers.iteration_result = {}
+    space:insert({1, "3"})
+    space:insert({2, "2"})
+    space:insert({3, "1"})
+
+    task = expirationd.start("clean_all", space.id, helpers.is_expired_debug,
+                    {start_key = box.NULL})
+    -- wait for tuples expired
+    helpers.retrying({}, function()
+        t.assert_equals(helpers.iteration_result, {
+            {1, "3"},
+            {2, "2"},
+            {3, "1"}
+        })
+    end)
+    task:kill()
+
+    -- with start key
+    helpers.iteration_result = {}
+    space:insert({1, "3"})
+    space:insert({2, "2"})
+    space:insert({3, "1"})
+
+    task = expirationd.start("clean_all", space.id, helpers.is_expired_debug,
+            {start_key = 2})
+    -- wait for tuples expired
+    helpers.retrying({}, function()
+        t.assert_equals(helpers.iteration_result, {
+            {2, "2"},
+            {3, "1"}
+        })
+    end)
+    task:kill()
+end
+
+function g.test_tree_index_vinyl()
+    test_tree_index(g.vinyl)
+end
+
 function g.test_tree_index()
-    for _, space in pairs({g.tree, g.vinyl}) do
-        -- without start key
-        helpers.iteration_result = {}
-        space:insert({1, "3"})
-        space:insert({2, "2"})
-        space:insert({3, "1"})
-
-        local task = expirationd.start("clean_all", space.id, helpers.is_expired_debug)
-        -- wait for tuples expired
-        helpers.retrying({}, function()
-            t.assert_equals(helpers.iteration_result, {
-                {1, "3"},
-                {2, "2"},
-                {3, "1"}
-            })
-        end)
-        task:kill()
-
-        -- box.NULL
-        helpers.iteration_result = {}
-        space:insert({1, "3"})
-        space:insert({2, "2"})
-        space:insert({3, "1"})
-
-        task = expirationd.start("clean_all", space.id, helpers.is_expired_debug,
-                        {start_key = box.NULL})
-        -- wait for tuples expired
-        helpers.retrying({}, function()
-            t.assert_equals(helpers.iteration_result, {
-                {1, "3"},
-                {2, "2"},
-                {3, "1"}
-            })
-        end)
-        task:kill()
-
-        -- with start key
-        helpers.iteration_result = {}
-        space:insert({1, "3"})
-        space:insert({2, "2"})
-        space:insert({3, "1"})
-
-        task = expirationd.start("clean_all", space.id, helpers.is_expired_debug,
-                {start_key = 2})
-        -- wait for tuples expired
-        helpers.retrying({}, function()
-            t.assert_equals(helpers.iteration_result, {
-                {2, "2"},
-                {3, "1"}
-            })
-        end)
-        task:kill()
-    end
+    test_tree_index(g.tree)
 end
 
 function g.test_hash_index()

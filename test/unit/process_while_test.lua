@@ -38,20 +38,26 @@ local function process_while(task)
     return true
 end
 
+local function test_tree_index(space)
+    helpers.iteration_result = {}
+    space:insert({1, "3"})
+    space:insert({2, "2"})
+    space:insert({3, "1"})
+    local task = expirationd.start("clean_all", space.id, helpers.is_expired_debug,
+            {process_while = process_while})
+    -- wait for tuples expired
+    helpers.retrying({}, function()
+        t.assert_equals(helpers.iteration_result, {{1, "3"}})
+    end)
+    task:kill()
+end
+
+function g.test_tree_index_vinyl()
+    test_tree_index(g.tree)
+end
+
 function g.test_tree_index()
-    for _, space in pairs({g.tree, g.vinyl}) do
-        helpers.iteration_result = {}
-        space:insert({1, "3"})
-        space:insert({2, "2"})
-        space:insert({3, "1"})
-        local task = expirationd.start("clean_all", space.id, helpers.is_expired_debug,
-                {process_while = process_while})
-        -- wait for tuples expired
-        helpers.retrying({}, function()
-            t.assert_equals(helpers.iteration_result, {{1, "3"}})
-        end)
-        task:kill()
-    end
+    test_tree_index(g.tree)
 end
 
 function g.test_hash_index()

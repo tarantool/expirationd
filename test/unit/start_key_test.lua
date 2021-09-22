@@ -8,7 +8,7 @@ g.before_each(function()
     g.tree = helpers.create_space_with_tree_index("memtx")
     g.hash = helpers.create_space_with_hash_index("memtx")
     g.bitset = helpers.create_space_with_bitset_index("memtx")
-    g.vinyl = helpers.create_space_with_vinyl("vinyl")
+    g.vinyl = helpers.create_space_with_tree_index("vinyl")
 end)
 
 g.after_each(function()

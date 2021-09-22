@@ -126,8 +126,9 @@ function g.test_tree_index_multipart()
     end
 end
 
-if _TARANTOOL >= "2" then
     function g.test_tree_index_json_path()
+        t.skip_if(_TARANTOOL < "2")
+
         for _, space in pairs({g.tree, g.vinyl}) do
             helpers.iteration_result = {}
 
@@ -157,6 +158,8 @@ if _TARANTOOL >= "2" then
     end
 
     function g.test_tree_index_multikey()
+        t.skip_if(_TARANTOOL < "2")
+
         for _, space in pairs({g.tree, g.vinyl}) do
             helpers.iteration_result = {}
 
@@ -180,6 +183,8 @@ if _TARANTOOL >= "2" then
     end
 
     function g.test_memtx_tree_functional_index()
+        t.skip_if(_TARANTOOL < "2")
+
         -- vinyl doesn't support functional indexes
         helpers.iteration_result = {}
 
@@ -198,8 +203,6 @@ if _TARANTOOL >= "2" then
         end)
         task:kill()
     end
-end
-
 
 function g.test_hash_index()
     helpers.iteration_result = {}

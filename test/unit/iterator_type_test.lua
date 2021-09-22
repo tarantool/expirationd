@@ -12,17 +12,13 @@ g.after_each(function()
     helpers.truncate_spaces(g)
 end)
 
-function g.test_passing_errors()
-    -- ========================== --
-    -- tree index
-    -- ========================== --
+function g.test_passing_errors_tree_index()
     t.assert_error_msg_content_equals(
             "Unknown iterator type 'ERROR'",
             expirationd.start, "clean_all", g.tree.id, helpers.is_expired_true, {iterator_type = "ERROR"})
+end
 
-    -- ========================== --
-    -- hash index
-    -- ========================== --
+function g.test_passing_errors_hash_index()
     t.assert_error_msg_contains(
             "Index 'primary' (HASH) of space 'hash' (memtx) does not support requested iterator type",
             expirationd.start, "clean_all", g.hash.id, helpers.is_expired_true, {start_key = 1, iterator_type = 1})
@@ -30,19 +26,15 @@ function g.test_passing_errors()
     t.assert_error_msg_content_equals(
             "Index 'primary' (HASH) of space 'hash' (memtx) does not support requested iterator type",
             expirationd.start, "clean_all", g.hash.id, helpers.is_expired_true, {start_key = 1, iterator_type = "GE"})
+end
 
-    -- ========================== --
-    -- bitset index
-    -- ========================== --
+function g.test_passing_errors_bitset_index()
     t.assert_error_msg_content_equals(
             "Not supported index type, expected TREE or HASH",
             expirationd.start, "clean_all", g.bitset.id, helpers.is_expired_true, {index = "index_for_first_name"})
 end
 
-function g.test_passing_all()
-    -- ========================== --
-    -- tree index
-    -- ========================== --
+function g.test_passing_all_tree_index()
     local task = expirationd.start("clean_all", g.tree.id, helpers.is_expired_true)
     -- default iterator_type for tree index is "ALL"
     t.assert_equals(task.iterator_type, "ALL")
@@ -52,11 +44,10 @@ function g.test_passing_all()
             {iterator_type = "ALL"})
     t.assert_equals(task.iterator_type, "ALL")
     task:kill()
+end
 
-    -- ========================== --
-    -- hash index
-    -- ========================== --
-    task = expirationd.start("clean_all", g.hash.id, helpers.is_expired_true)
+function g.test_passing_all_hash_index()
+    local task = expirationd.start("clean_all", g.hash.id, helpers.is_expired_true)
     -- default iterator_type for hash index is "GE"
     t.assert_equals(task.iterator_type, "ALL")
     task:kill()
@@ -67,37 +58,29 @@ function g.test_passing_all()
     task:kill()
 end
 
-function g.test_passing_eq()
-    -- ========================== --
-    -- tree index
-    -- ========================== --
+function g.test_passing_eq_tree_index()
     local task = expirationd.start("clean_all", g.tree.id, helpers.is_expired_true,
             {iterator_type = "EQ"})
     t.assert_equals(task.iterator_type, "EQ")
     task:kill()
+end
 
-    -- ========================== --
-    -- hash index
-    -- ========================== --
-    task = expirationd.start("clean_all", g.hash.id, helpers.is_expired_true,
+function g.test_passing_eq_hash_index()
+    local task = expirationd.start("clean_all", g.hash.id, helpers.is_expired_true,
             {start_key = 1, iterator_type = "EQ"})
     t.assert_equals(task.iterator_type, "EQ")
     task:kill()
 end
 
-function g.test_passing_gt()
-    -- ========================== --
-    -- tree index
-    -- ========================== --
+function g.test_passing_gt_tree_index()
     local task = expirationd.start("clean_all", g.tree.id, helpers.is_expired_true,
             {iterator_type = "GT"})
     t.assert_equals(task.iterator_type, "GT")
     task:kill()
+end
 
-    -- ========================== --
-    -- hash index
-    -- ========================== --
-    task = expirationd.start("clean_all", g.hash.id, helpers.is_expired_true,
+function g.test_passing_gt_hash_index()
+    local task = expirationd.start("clean_all", g.hash.id, helpers.is_expired_true,
             {iterator_type = "GT"})
     t.assert_equals(task.iterator_type, "GT")
     task:kill()

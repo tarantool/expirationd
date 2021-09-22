@@ -150,7 +150,7 @@ local function init_box()
     })
     a:create_index('first', {
         type = index_type,
-        parts = {1, 'NUM'},
+        parts = {1, 'number'},
         if_not_exists = true
     })
     truncate(a.id)
@@ -161,7 +161,7 @@ local function init_box()
     })
     b:create_index('first', {
         type = index_type,
-        parts = {1, 'STR'},
+        parts = {1, 'string'},
         if_not_exists = true
     })
     truncate(b.id)
@@ -172,7 +172,7 @@ local function init_box()
     })
     c:create_index('first', {
         type = index_type,
-        parts = {1, 'NUM'},
+        parts = {1, 'number'},
         if_not_exists = true
     })
     truncate(c.id)
@@ -183,7 +183,7 @@ local function init_box()
     })
     d:create_index('first', {
         type = index_type,
-        parts = {1, 'NUM'},
+        parts = {1, 'number'},
         if_not_exists = true
     })
     truncate(d.id)
@@ -194,7 +194,7 @@ local function init_box()
     })
     e:create_index('first', {
         type = index_type,
-        parts = {1, 'NUM'},
+        parts = {1, 'number'},
         if_not_exists = true
     })
     truncate(e.id)
@@ -205,7 +205,7 @@ local function init_box()
     })
     f:create_index('first', {
         type = index_type,
-        parts = {2, 'NUM', 1, 'NUM'},
+        parts = {2, 'number', 1, 'number'},
         if_not_exists = true
     })
     truncate(f.id)
@@ -216,7 +216,7 @@ local function init_box()
     })
     g:create_index('first', {
         type = index_type,
-        parts = {1, 'NUM'},
+        parts = {1, 'number'},
         if_not_exists = true
     })
     truncate(g.id)
@@ -227,7 +227,7 @@ local function init_box()
     })
     h:create_index('first', {
         type = index_type,
-        parts = {1, 'NUM'},
+        parts = {1, 'number'},
         if_not_exists = true
     })
     truncate(h.id)

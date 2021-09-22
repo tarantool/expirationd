@@ -108,8 +108,16 @@
 <br/>
 
 
-    <h2 class="section-header "><a name="Task_methods"></a>Task methods </h2>
+    <h2 class="section-header has-description"><a name="Task_methods"></a>Task methods </h2>
 
+          <div class="section-description">
+
+<p> NOTE: task object contains a number of properties that available for users.
+ However these properties are not a part of expirationd API. Property name
+ can be changed or property itself can be removed in future version. Be
+ careful!
+
+          </div>
     <dl class="function Methods">
     <dt>
     <a name="task.start"></a>
@@ -128,8 +136,6 @@
         <span class="parameter-description">
         <p>
      Task instance.
-<p> Force start <code>task</code> (old <code>guardian_fiber</code> will be garbage
- collected, so do <code>task:stop()</code> before or <code>task:restart()</code> instead).
 </p>
         </span>
         </li>
@@ -299,6 +305,25 @@
     <dd>
     <p>Run a scheduled task to check and process (expire) tuples in a given space. <table class="markdown_table">
 </table>
+<p>
+ How expirationd works in general:
+<p><ul class="markdown_list">
+<li>Process min(<code>space_length</code>, <code>tuples_per_iteration</code>) tuples at once.</li>
+</ul>
+<p><ul class="markdown_list">
+<li>Sleep <code>tuples_per_iteration</code> × <code>full_scan_time</code> / <code>space_length</code> (but not beyond 1 second).</li>
+</ul>
+<p><ul class="markdown_list">
+<li>Repeat 1-2 until the whole space will be traversed.</li>
+</ul>
+<p><ul class="markdown_list">
+<li>Sleep 1 second.</li>
+</ul>
+<p><ul class="markdown_list">
+<li>Repeat 1-4.</li>
+</ul>
+<p><table class="markdown_table">
+</table>
 </p>
 
 
@@ -331,8 +356,20 @@
         <br>
         <span class="parameter-description">
         <p>
-     Function, must accept tuple and return true/false (is tuple expired or
-     not), receives <code>args</code>, <code>tuple</code> as arguments.</p>
+     Function, must accept tuple and return <code>true</code> or <code>false</code> (is tuple
+     expired or not), receives <code>args</code> and <code>tuple</code> as arguments.
+<p> Example of function:
+<p> <code></code><code>
+ local function is_tuple_expired(args, tuple)
+     local tuple_expire_time = get_field(tuple, args.field_no)
+     if type(tuple_expire_time) ~= 'number' then
+         return true
+     end
+     local current_time = fiber.time()
+<p>     return current_time >= tuple_expire_time
+ end
+ </code><code></code>
+</p>
         </span>
         </li>
         <li><span class="parameter">options</span>
@@ -416,7 +453,9 @@
         <span class="parameter-description">
         <p>
      Time required for a full index scan (in seconds). It is allowed to pass
-     an FFI number: 1LL, 1UL etc. Default value is 3600.</p>
+     an FFI number: <code>1LL</code>, <code>1UL</code> etc. <code>full_scan_time</code> used for calculation
+     of time during which fiber sleeps between iterations. Default value is
+     3600.</p>
         </span>
         </li>
         <li><span class="parameter">index</span>
@@ -447,7 +486,12 @@
         <p>
      Function which returns an iterator object which provides tuples to
      check, considering the <code>start_key</code>, <code>process_while</code> and other options.
-     There's a default function which can be overriden with this parameter.</p>
+     There's a default function which can be overriden with this parameter.
+<p> Example of function:
+<p><pre> local function iterate_with()
+     return true
+ end</pre>
+</p>
         </span>
         </li>
         <li><span class="parameter">iteration_delay</span>
@@ -461,7 +505,8 @@
         <span class="parameter-description">
         <p>
      Max sleep time between iterations (in seconds). It is allowed to pass
-     an FFI number: <code>1LL</code>, <code>1UL</code> etc. Default value is 1 sec.</p>
+     an FFI number: <code>1LL</code>, <code>1UL</code> etc. Default value is 1 sec.
+     Fiber sleeps min(<code>tuples_per_iteration</code> × <code>full_scan_time</code> / <code>space_length</code>, <code>iteration_delay</code>).</p>
         </span>
         </li>
         <li><span class="parameter">iterator_type</span>
@@ -475,8 +520,8 @@
         <span class="parameter-description">
         <p>
      Type of the iterator to use, as string or box.index constant, for
-     example, 'EQ' or <code>box.index.EQ</code>, default is <code>box.index.ALL</code>. See
-     <a href="https://www.tarantool.io/en/doc/latest/reference/reference_lua/box_index/pairs/.">index_object:pairs()</a>.
+     example, <code>EQ</code> or <code>box.index.EQ</code>, default is <code>box.index.ALL</code>. See more
+     about index iterators in <a href="https://www.tarantool.io/en/doc/latest/reference/reference_lua/box_index/pairs/.">index_object:pairs()</a>.
 <p><table class="markdown_table">
 </table>
 </p>
@@ -507,7 +552,12 @@
         <span class="parameter-description">
         <p>
      Function to call after terminating a full scan due to an error. Default
-     value is a function that do nothing.</p>
+     value is a function that do nothing.
+<p> Example of function:
+<p><pre> local function on_full_scan_complete()
+     pcall(fiber.sleep, 1)
+ end</pre>
+</p>
         </span>
         </li>
         <li><span class="parameter">on_full_scan_start</span>
@@ -549,7 +599,17 @@
         <span class="parameter-description">
         <p>
      Applied to expired tuples, receives <code>space_id</code>, <code>args</code>, <code>tuple</code> as
-     arguments. Can be a <code>nil</code>: by default tuples are removed.</p>
+     arguments. When <code>process_expired_tuple</code> is not passed (or <code>nil</code> passed),
+     tuples are removed.
+<p> Example of function:
+<p><pre> local function put_tuple_to_archive(space_id, args, tuple)
+     box.space[space_id]:delete{tuple[1]}
+     local email = get_field(tuple, 2)
+     if args.archive_space_id ~= nil and email ~= nil then
+         box.space[args.archive_space_id]:replace{email, fiber.time()}
+     end
+ end</pre>
+</p>
         </span>
         </li>
         <li><span class="parameter">process_while</span>
@@ -563,7 +623,13 @@
         <span class="parameter-description">
         <p>
      Function to call before checking each tuple. If it returns false, the
-     task will stop until next full scan.</p>
+     task will stop until next full scan. Default is a function that always
+     return <code>true</code>.
+<p> Example of function:
+<p><pre> local function process_while()
+     return false
+ end</pre>
+</p>
         </span>
         </li>
         <li><span class="parameter">start_key</span>
@@ -642,7 +708,7 @@
     <h3>Returns:</h3>
     <ol>
 
-           <span class="types"><a class="type" href="index.html#task">task</a></span>
+           <span class="types"><a class="type" href="index.html#task">task_obj</a></span>
         <table class="markdown_table">
 </table>
 
@@ -821,76 +887,9 @@ expirationd.start(job_name, space.id, is_expired, {
     <h3>Returns:</h3>
     <ol>
 
-         Response of the following structure:
-<p><pre> {
-     atomic_iteration = false,
-     checked_tuples_count = 0,
-     do_worker_iteration = function: 0x4180cb68,
-     expired_tuples_count = 0,
-     full_scan_delay = 1,
-     full_scan_time = 3600,
-     guardian_fiber = fiber: 122,
-     index = {
-         hint = true,
-         id = 0,
-         name = "primary",
-         parts = {{fieldno = 1, is_nullable = false, type = "number"}},
-         space_id = 512,
-         type = "TREE",
-         unique = true,
-     },
-     is_tuple_expired = function: 0x40781db8,
-     iterate_with = function: 0x4188ae78,
-     iteration_delay = 1,
-     iterator_type = "ALL",
-     name = "expirationd-2",
-     on_full_scan_complete = function: 0x40972568,
-     on_full_scan_error = function: 0x40972568,
-     on_full_scan_start = function: 0x40972568,
-     on_full_scan_success = function: 0x40972568,
-     process_expired_tuple = function: 0x4188ae38,
-     process_while = function: 0x4148f4c8,
-     restarts = 1,
-     space_id = 512,
-     start_key = function: 0x40994c48,
-     start_time = 1631818716.1123,
-     tuples_per_iteration = 1024,
-     vinyl_assumed_space_len = 10000000,
-     vinyl_assumed_space_len_factor = 2,
-     worker_cancelled = false,
-     worker_fiber = fiber: 123,
- }</pre>
-<p>
- where:
-<p> <code>atomic_iteration</code> is a boolean value (<span class="xxx">XXX</span>).
-<p> <code>checked_tuples_count</code> is a number of processed tuples.
-<p> <code>do_worker_iteration</code> is a function (<span class="xxx">XXX</span>).
-<p> <code>expired_tuples_count</code> is a number of expired tuples.
-<p> <code>full_scan_delay</code> is a number (<span class="xxx">XXX</span>).
-<p> <code>full_scan_time</code> is a number (<span class="xxx">XXX</span>).
-<p> <code>guardian_fiber</code> is a fiber id (<span class="xxx">XXX</span>).
-<p> <code>index</code> is an index used for iteration of tuples.
-<p> <code>is_tuple_expired</code> is a function (<span class="xxx">XXX</span>).
-<p> <code>iterate_with</code> is a function (<span class="xxx">XXX</span>).
-<p> <code>iteration_delay</code> is a number (<span class="xxx">XXX</span>).
-<p> <code>iterator_type</code> = "ALL" (<span class="xxx">XXX</span>).
-<p> <code>name</code> is a string with name of task.
-<p> <code>on_full_scan_complete</code> is a function (<span class="xxx">XXX</span>).
-<p> <code>on_full_scan_error</code> is a function (<span class="xxx">XXX</span>).
-<p> <code>on_full_scan_start</code> is a function (<span class="xxx">XXX</span>).
-<p> <code>on_full_scan_success</code> is a function (<span class="xxx">XXX</span>).
-<p> <code>process_expired_tuple</code> is a function (<span class="xxx">XXX</span>).
-<p> <code>process_while</code> is a function (<span class="xxx">XXX</span>).
-<p> <code>restarts</code> is a number of restarts.
-<p> <code>space_id</code> is a space id, where task processes tuples.
-<p> <code>start_key</code> is a function (<span class="xxx">XXX</span>).
-<p> <code>start_time</code> is a time when task starts.
-<p> <code>tuples_per_iteration</code> is a max number of tuples that task can process on
-  each iteration.
-<p> <code>vinyl_assumed_space_len</code> is a number (<span class="xxx">XXX</span>).
-<p> <code>vinyl_assumed_space_len_factor</code> is a number (<span class="xxx">XXX</span>).
-<p> <code>worker_cancelled</code> is a boolean value (<span class="xxx">XXX</span>).
-<p> <code>worker_fiber</code> is a fiber id.
+           <span class="types"><a class="type" href="index.html#task">task_obj</a></span>
+        <table class="markdown_table">
+</table>
 
     </ol>
 
@@ -907,8 +906,9 @@ expirationd.start(job_name, space.id, is_expired, {
 </table>
 <p>
  Update expirationd version in a running Tarantool and restart all tasks.
- Step by step: remove expirationd module from <code>package.loaded</code>, import new
- version of expirationd using <code>require</code> and finally restart all tasks.
+ Reload process step by step: remove expirationd module from
+ <code>package.loaded</code>, import new version of expirationd using <code>require</code> and
+ finally restart all tasks.
 </p>
 
 

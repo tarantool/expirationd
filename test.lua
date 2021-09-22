@@ -142,7 +142,7 @@ local function init_box()
     }
     local index_type = arg[1] or os.getenv('INDEX_TYPE') or 'TREE'
     local space_type = arg[2] or os.getenv('SPACE_TYPE') or 'memtx'
-    log.info('Running tests for %s index', index_type)
+    log.info('Running tests for %s index and engine %s', index_type, space_type)
 
     local a = box.schema.create_space('origin', {
         engine = space_type,

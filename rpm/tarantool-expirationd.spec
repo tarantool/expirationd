@@ -15,7 +15,7 @@ This package can turn Tarantool into a persistent memcache replacement,
 but is powerful enough so that your own expiration strategy can be defined.
 
 You define two functions: one takes a tuple as an input and returns true in
-case it's expirted and false otherwise. The other takes the tuple and
+case it's expired and false otherwise. The other takes the tuple and
 performs the expiry itself: either deletes it (memcache), or does something
 smarter, like put a smaller representation of the data being deleted into
 some other space.

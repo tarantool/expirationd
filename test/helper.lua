@@ -24,7 +24,15 @@ local function create_space(space_name, engine)
 end
 
 function helpers.create_space_with_tree_index(engine)
-    local space = create_space("tree", engine)
+    -- Change space name when engine is vinyl to avoid intersection
+    -- with space "tree" with memtx engine.
+    -- To be removed in next commit.
+    local space_name = "tree"
+    if engine == "vinyl" then
+        space_name = "vinyl"
+    end
+    local space = create_space(space_name, engine)
+
     space:create_index("primary", {type = "TREE", parts={ 1 }})
     space:create_index("index_for_first_name", {type = "TREE", parts={ 2 }})
     space:create_index("multipart_index", {type = "TREE", parts={ {3, is_nullable = true}, {4, is_nullable = true} }})
@@ -35,25 +43,10 @@ function helpers.create_space_with_tree_index(engine)
                 {type = "TREE", parts = { {6, type = "scalar", path = "age", is_nullable = true} }})
         space:create_index("multikey_index",
                 {type = "TREE", parts = { {7, type = "str", path = "data[*].name"} }} )
-        space:create_index("functional_index",
-                {type = "TREE", parts={ {1, type = "string"} }, func = "tree_func"})
-    end
-
-    return space
-end
-
-function helpers.create_space_with_vinyl(engine)
-    local space = create_space("vinyl", engine)
-    space:create_index("primary", {type = "TREE", parts={ 1 }})
-    space:create_index("index_for_first_name", {type = "TREE", parts={ 2 }})
-    space:create_index("multipart_index", {type = "TREE", parts={ {3, is_nullable = true}, {4, is_nullable = true} }})
-    space:create_index("non_unique_index", {type = "TREE", parts={ {5} }, unique = false })
-
-    if _TARANTOOL >= "2" then
-        space:create_index("json_path_index",
-                {type = "TREE", parts = { {6, type = "scalar", path = "age", is_nullable = true} }})
-        space:create_index("multikey_index",
-                {type = "TREE", parts = { {7, type = "str", path = "data[*].name", is_nullable = true} }})
+        if engine ~= "vinyl" then
+            space:create_index("functional_index",
+                    {type = "TREE", parts={ {1, type = "string"} }, func = "tree_func"})
+        end
     end
 
     return space

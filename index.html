@@ -475,7 +475,7 @@
      iterator returned by <a href="https://www.tarantool.io/en/doc/latest/reference/reference_lua/box_index/pairs/.">index_object:pairs()</a>, where <code>index</code> is a
      primary index or index that specified with argument <code>options.index</code>:
 <p><pre>  index:pairs(option.start_key(), {
-     iterator = task.iterator_type
+     iterator = option.iterator_type
   }):take_while(
          function()
              return option.process_while()

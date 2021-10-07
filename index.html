@@ -409,8 +409,13 @@
         <br>
         <span class="parameter-description">
         <p>
-     expirationd doesn't work on replica by default. With option <code>force</code> it
-     should be possible to force work on replica.</p>
+     By default expirationd should process tasks only on the writeable
+     instance, it means that expirationd will not start task processing on a
+     replica. Here the word 'replica' means an instance with at least one
+     configured upstream, it's an option <code>box.cfg.replication_source</code>
+     (<code>box.cfg.replication</code> for Tarantool 1.7.6+). The option <code>force</code> let a
+     user control where to start task processing and where don't.
+</p>
         </span>
         </li>
         <li><span class="parameter">full_scan_delay</span>

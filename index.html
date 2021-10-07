@@ -32,8 +32,8 @@
 
 <h2>Contents</h2>
 <ul>
-<li><a href="#Task_methods">Task methods </a></li>
-<li><a href="#Functions">Functions </a></li>
+<li><a href="#Task_instance_methods">Task instance methods </a></li>
+<li><a href="#Module_functions">Module functions </a></li>
 </ul>
 
 
@@ -47,13 +47,13 @@
 <div id="content">
 
 <h1>Module <code>expirationd</code></h1>
-<p>expirationd module</p>
+<p>expirationd - data expiration with custom quirks.</p>
 <p><table class="markdown_table">
 </table>
 </p>
 
 
-<h2><a href="#Task_methods">Task methods </a></h2>
+<h2><a href="#Task_instance_methods">Task instance methods </a></h2>
 <table class="function_list">
 	<tr>
 	<td class="name" nowrap><a href="#task.start">task.start (self)</a></td>
@@ -76,7 +76,7 @@
 	<td class="summary">Get a statistics about a task.</td>
 	</tr>
 </table>
-<h2><a href="#Functions">Functions </a></h2>
+<h2><a href="#Module_functions">Module functions </a></h2>
 <table class="function_list">
 	<tr>
 	<td class="name" nowrap><a href="#start">start (name, space_id, is_tuple_expired[, options])</a></td>
@@ -108,7 +108,7 @@
 <br/>
 
 
-    <h2 class="section-header has-description"><a name="Task_methods"></a>Task methods </h2>
+    <h2 class="section-header has-description"><a name="Task_instance_methods"></a>Task instance methods </h2>
 
           <div class="section-description">
 
@@ -295,7 +295,7 @@
 
 </dd>
 </dl>
-    <h2 class="section-header "><a name="Functions"></a>Functions </h2>
+    <h2 class="section-header "><a name="Module_functions"></a>Module functions </h2>
 
     <dl class="function Functions">
     <dt>
@@ -471,9 +471,10 @@
         <p>
      Function which returns an iterator object which provides tuples to
      check, considering the <code>start_key</code>, <code>process_while</code> and other options.
-     When option is nil default function is used. Default function returns
-     iterator returned by <a href="https://www.tarantool.io/en/doc/latest/reference/reference_lua/box_index/pairs/.">index_object:pairs()</a>, where <code>index</code> is a
-     primary index or index that specified with argument <code>options.index</code>:
+     When option is nil default function is used. Function must accept a task
+     instance object. Default function returns iterator returned by
+     <a href="https://www.tarantool.io/en/doc/latest/reference/reference_lua/box_index/pairs/.">index_object:pairs()</a>, where <code>index</code> is a primary index or index
+     that specified with argument <code>options.index</code>:
 <p><pre>  index:pairs(option.start_key(), {
      iterator = option.iterator_type
   }):take_while(
@@ -697,17 +698,14 @@
     <h3>Returns:</h3>
     <ol>
 
-           <span class="types"><a class="type" href="index.html#task">task_obj</a></span>
-        <table class="markdown_table">
-</table>
-
+        task instance
     </ol>
 
 
 
     <h3>Usage:</h3>
     <ul>
-        <pre class="example"><span class="keyword">local</span> expirationd = <span class="global">require</span>(<span class="string">"expirationd"</span>)
+        <pre class="example"><span class="keyword">local</span> expirationd = <span class="global">require</span>(<span class="string">'expirationd'</span>)
 
 box.cfg{}
 
@@ -874,10 +872,7 @@ expirationd.start(job_name, space.id, is_expired, {
     <h3>Returns:</h3>
     <ol>
 
-           <span class="types"><a class="type" href="index.html#task">task_obj</a></span>
-        <table class="markdown_table">
-</table>
-
+        task instance
     </ol>
 
 

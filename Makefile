@@ -15,17 +15,17 @@ all: test
 # functions like string.split(), string.endswith(), so we run
 # ldoc using tarantool.
 apidoc:
-	.rocks/bin/ldoc -c $(PROJECT_DIR)/doc/ldoc/config.ld \
+	ldoc -c $(PROJECT_DIR)/doc/ldoc/config.ld \
              -d $(PROJECT_DIR)/doc/apidoc/ expirationd.lua
 
 check: luacheck
 
 luacheck:
-	.rocks/bin/luacheck --config .luacheckrc --codes .
+	luacheck --config .luacheckrc --codes .
 
 .PHONY: test
 test:
-	.rocks/bin/luatest -v
+	luatest -v
 	rm -rf ${CLEANUP_FILES}
 	INDEX_TYPE='TREE' SPACE_TYPE='vinyl' ./test.lua
 	rm -rf ${CLEANUP_FILES}

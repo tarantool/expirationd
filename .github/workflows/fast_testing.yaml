@@ -49,6 +49,8 @@ jobs:
           tarantoolctl rocks make
         if: steps.cache-rocks.outputs.cache-hit != 'true'
 
+      - run: echo $PWD/.rocks/bin >> $GITHUB_PATH
+
       - run: make check
 
       - run: make test

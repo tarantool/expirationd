@@ -301,10 +301,7 @@ test:test('simple expires test',  function(test)
     local task = expirationd.task("test")
     test:is(task.start_time, start_time, 'checking start time')
     test:is(task.name, "test", 'checking task name')
-    local restarts = 5
-    if box.space[space_id].engine == 'memtx' then
-        restarts = 1
-    end
+    local restarts = 1
     test:is(task.restarts, restarts, 'checking restart count')
     test:is(task.expired_tuples_count, 7, 'Test task executed and moved to archive')
     expirationd.kill("test")

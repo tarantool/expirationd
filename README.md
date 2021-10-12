@@ -1,3 +1,8 @@
+[![Run tests](https://github.com/tarantool/expirationd/actions/workflows/test_on_push.yaml/badge.svg)](https://github.com/tarantool/expirationd/actions/workflows/test_on_push.yaml)
+<a href='https://coveralls.io/github/tarantool/expirationd?branch=master'>
+<img src='https://coveralls.io/repos/github/tarantool/expirationd/badge.svg?branch=master' alt='Coverage Status' />
+</a>
+
 # expirationd -  data expiration with custom quirks.
 
 This package can turn Tarantool into a persistent memcache replacement,

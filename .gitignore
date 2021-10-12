@@ -3,3 +3,6 @@
 *.xlog
 *.log
 VERSION
+luacov.stats.out
+luacov.report.out
+tags

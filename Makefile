@@ -3,6 +3,8 @@
 # `make -f /path/to/project/Makefile`.
 MAKEFILE_PATH := $(abspath $(lastword $(MAKEFILE_LIST)))
 PROJECT_DIR := $(patsubst %/,%,$(dir $(MAKEFILE_PATH)))
+LUACOV_REPORT := $(PROJECT_DIR)/luacov.report.out
+LUACOV_STATS := $(PROJECT_DIR)/luacov.stats.out
 
 CLEANUP_FILES  = tarantool.log
 CLEANUP_FILES += *.xlog*
@@ -25,7 +27,7 @@ luacheck:
 
 .PHONY: test
 test:
-	luatest -v
+	luatest -v --coverage
 	rm -rf ${CLEANUP_FILES}
 	INDEX_TYPE='TREE' SPACE_TYPE='vinyl' ./test.lua
 	rm -rf ${CLEANUP_FILES}
@@ -33,6 +35,17 @@ test:
 	rm -rf ${CLEANUP_FILES}
 	INDEX_TYPE='TREE' ./test.lua
 	rm -rf ${CLEANUP_FILES}
+
+$(LUACOV_STATS): test
+
+coverage: $(LUACOV_STATS)
+	sed -i -e 's@'"$$(realpath .)"'/@@' $(LUACOV_STATS)
+	cd $(PROJECT_DIR) && luacov expirationd.lua
+	grep -A999 '^Summary' $(LUACOV_REPORT)
+
+coveralls: $(LUACOV_STATS)
+	echo "Send code coverage data to the coveralls.io service"
+	luacov-coveralls --include ^expirationd --verbose --repo-token ${GITHUB_TOKEN}
 
 clean:
 	rm -rf ${CLEANUP_FILES}

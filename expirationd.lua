@@ -505,7 +505,7 @@ end
 -- Example of function:
 --
 -- ```
--- local function on_full_scan_complete()
+-- local function on_full_scan_error()
 --     pcall(fiber.sleep, 1)
 -- end
 -- ```

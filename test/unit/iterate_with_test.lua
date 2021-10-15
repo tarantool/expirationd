@@ -14,9 +14,9 @@ end)
 
 function g.test_passing()
     local task = expirationd.start("clean_all", g.tree.id, helpers.is_expired_true,
-            { iterate_with = helpers.is_expired_true })
+            { iterate_with = helpers.iterate_with_func })
     -- default process_while always return false, iterations never stopped by this function
-    t.assert_equals(task.iterate_with, helpers.is_expired_true)
+    t.assert_equals(task.iterate_with, helpers.iterate_with_func)
     task:kill()
 
     -- errors

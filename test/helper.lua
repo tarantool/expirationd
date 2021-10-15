@@ -103,6 +103,15 @@ function helpers.is_expired_true()
     return true
 end
 
+function helpers.iterate_with_func(task)
+    return task.index:pairs(task.start_key(), { iterator = task.iterator_type })
+       :take_while(
+            function()
+                return task:process_while()
+            end
+        )
+end
+
 helpers.iteration_result = {}
 function helpers.is_expired_debug(_, tuple)
     table.insert(helpers.iteration_result, tuple)

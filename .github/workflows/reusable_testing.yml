@@ -1,0 +1,33 @@
+name: reusable_testing
+
+on:
+  workflow_call:
+    inputs:
+      artifact_name:
+        description: The name of the Tarantool build artifact
+        default: ubuntu-focal
+        required: false
+        type: string
+
+jobs:
+  run_tests:
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Clone the expirationd module
+        uses: actions/checkout@v2
+        with:
+          repository: ${{ github.repository_owner }}/expirationd
+
+      - name: Download the Tarantool build artifact
+        uses: actions/download-artifact@v2
+        with:
+          name: ${{ inputs.artifact_name }}
+
+      - name: Install Tarantool
+        # Now we're lucky: all dependencies are already installed. Check package
+        # dependencies when migrating to other OS version.
+        run: sudo dpkg -i tarantool_*.deb tarantool-common_*.deb tarantool-dev_*.deb
+
+      - run: make deps
+      - run: echo $PWD/.rocks/bin >> $GITHUB_PATH
+      - run: make test

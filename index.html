@@ -47,7 +47,7 @@
 <div id="content">
 
 <h1>Module <code>expirationd</code></h1>
-<p>expirationd - data expiration with custom quirks.</p>
+<p>expirationd - data expiration with custom quirks (Hello, dude!).</p>
 <p><table class="markdown_table">
 </table>
 </p>
@@ -552,7 +552,7 @@
      Function to call after terminating a full scan due to an error. Default
      value is a function that do nothing.
 <p> Example of function:
-<p><pre> local function on_full_scan_complete()
+<p><pre> local function on_full_scan_error()
      pcall(fiber.sleep, 1)
  end</pre>
 </p>

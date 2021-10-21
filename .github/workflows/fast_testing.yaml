@@ -47,12 +47,7 @@ jobs:
           key: cache-rocks-${{ matrix.tarantool }}-06
 
       - name: Install requirements
-        run: |
-          tarantoolctl rocks install luatest 0.5.0
-          tarantoolctl rocks install luacheck 0.26.0
-          tarantoolctl rocks install luacov 0.13.0-1
-          tarantoolctl rocks install luacov-coveralls 0.2.3-1 --server=http://luarocks.org
-          tarantoolctl rocks make
+        run: make deps
         if: steps.cache-rocks.outputs.cache-hit != 'true'
 
       - run: echo $PWD/.rocks/bin >> $GITHUB_PATH

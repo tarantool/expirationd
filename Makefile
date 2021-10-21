@@ -52,5 +52,13 @@ coveralls: $(LUACOV_STATS)
 	echo "Send code coverage data to the coveralls.io service"
 	luacov-coveralls --include ^expirationd --verbose --repo-token ${GITHUB_TOKEN}
 
+deps:
+	tarantoolctl rocks install luatest 0.5.0
+	tarantoolctl rocks install luacheck 0.26.0
+	tarantoolctl rocks install luacov 0.13.0-1
+	tarantoolctl rocks install ldoc --server=https://tarantool.github.io/LDoc/
+	tarantoolctl rocks install luacov-coveralls 0.2.3-1 --server=http://luarocks.org
+	tarantoolctl rocks make
+
 clean:
 	rm -rf ${CLEANUP_FILES}

@@ -1,7 +1,7 @@
 package = "expirationd"
 version = "scm-1"
 source = {
-    url = "git://github.com/tarantool/expirationd.git",
+    url = "git+https://github.com/tarantool/expirationd.git",
     branch = "master",
 }
 description = {

@@ -44,7 +44,7 @@ jobs:
         id: cache-rocks
         with:
           path: .rocks/
-          key: cache-rocks-${{ matrix.tarantool }}-06
+          key: cache-rocks-${{ matrix.tarantool }}-07
 
       - name: Install requirements
         run: make deps

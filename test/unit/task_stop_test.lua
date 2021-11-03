@@ -1,30 +1,30 @@
 local expirationd = require("expirationd")
 local fiber = require("fiber")
 local t = require("luatest")
-local g = t.group("task_stop")
 
 local helpers = require("test.helper")
 
-g.before_each(function()
-    g.tree = helpers.create_space_with_tree_index("memtx")
-    g.hash = helpers.create_space_with_hash_index("memtx")
-    g.bitset = helpers.create_space_with_bitset_index("memtx")
-    g.vinyl = helpers.create_space_with_tree_index("vinyl")
+local g = t.group('task_stop', t.helpers.matrix({
+    engine = {
+        'memtx',
+        'vinyl',
+    },
+}))
+
+g.before_each(function(cg)
+    g.space = helpers.create_space_with_tree_index(cg.params.engine)
 end)
 
-g.after_each(function()
-    g.tree:drop()
-    g.hash:drop()
-    g.bitset:drop()
-    g.vinyl:drop()
+g.after_each(function(g)
+    g.space:drop()
 end)
 
-function g.test_cancel_on_pcall()
+function g.test_cancel_on_pcall(cg)
     local function on_full_scan_complete()
         pcall(fiber.sleep, 1)
     end
     local one_hour = 3600
-    local task = expirationd.start("clean_all", g.tree.id, helpers.is_expired_true, {
+    local task = expirationd.start("clean_all", cg.space.id, helpers.is_expired_true, {
         full_scan_delay = one_hour,
         on_full_scan_complete = on_full_scan_complete
     })

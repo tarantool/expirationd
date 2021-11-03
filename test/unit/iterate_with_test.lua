@@ -1,25 +1,28 @@
 local expirationd = require("expirationd")
 local t = require("luatest")
-local g = t.group("iterate_with")
 
 local helpers = require("test.helper")
 
-g.before_each(function()
-    g.tree = helpers.create_space_with_tree_index("memtx")
-    g.hash = helpers.create_space_with_hash_index("memtx")
-    g.bitset = helpers.create_space_with_bitset_index("memtx")
-    g.vinyl = helpers.create_space_with_tree_index("vinyl")
+local g = t.group('iterate_with', {
+    {index_type = 'TREE', engine = 'vinyl'},
+    {index_type = 'TREE', engine = 'memtx'},
+    {index_type = 'HASH', engine = 'memtx'},
+})
+
+g.before_each({index_type = 'TREE'}, function(cg)
+    g.space = helpers.create_space_with_tree_index(cg.params.engine)
 end)
 
-g.after_each(function()
-    g.tree:drop()
-    g.hash:drop()
-    g.bitset:drop()
-    g.vinyl:drop()
+g.before_each({index_type = 'HASH'}, function(cg)
+    g.space = helpers.create_space_with_hash_index(cg.params.engine)
 end)
 
-function g.test_passing()
-    local task = expirationd.start("clean_all", g.tree.id, helpers.is_expired_true,
+g.after_each(function(g)
+    g.space:drop()
+end)
+
+function g.test_passing(cg)
+    local task = expirationd.start("clean_all", cg.space.id, helpers.is_expired_true,
             { iterate_with = helpers.iterate_with_func })
     -- default process_while always return false, iterations never stopped by this function
     t.assert_equals(task.iterate_with, helpers.iterate_with_func)
@@ -27,6 +30,6 @@ function g.test_passing()
 
     -- errors
     t.assert_error_msg_contains("bad argument options.iterate_with to nil (?function expected, got string)",
-            expirationd.start, "clean_all", g.tree.id, helpers.is_expired_true,
+            expirationd.start, "clean_all", cg.space.id, helpers.is_expired_true,
             { iterate_with = "" })
 end

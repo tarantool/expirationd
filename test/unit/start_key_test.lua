@@ -1,41 +1,46 @@
 local expirationd = require("expirationd")
 local t = require("luatest")
-local g = t.group("start_key")
 
 local helpers = require("test.helper")
 
-g.before_each(function()
-    g.tree = helpers.create_space_with_tree_index("memtx")
-    g.hash = helpers.create_space_with_hash_index("memtx")
-    g.bitset = helpers.create_space_with_bitset_index("memtx")
-    g.vinyl = helpers.create_space_with_tree_index("vinyl")
+local g = t.group('start_key', {
+    {index_type = 'TREE', engine = 'vinyl'},
+    {index_type = 'TREE', engine = 'memtx'},
+    {index_type = 'HASH', engine = 'memtx'},
+})
+
+g.before_each({index_type = 'TREE'}, function(cg)
+    g.space = helpers.create_space_with_tree_index(cg.params.engine)
 end)
 
-g.after_each(function()
-    g.tree:drop()
-    g.hash:drop()
-    g.bitset:drop()
-    g.vinyl:drop()
+g.before_each({index_type = 'HASH'}, function(cg)
+    g.space = helpers.create_space_with_hash_index(cg.params.engine)
 end)
 
-function g.test_passing()
-    local task = expirationd.start("clean_all", g.tree.id, helpers.is_expired_true)
+g.after_each(function(g)
+    g.space:drop()
+end)
+
+function g.test_passing(cg)
+    t.skip_if(cg.params.index_type ~= 'TREE', 'Unsupported index type')
+
+    local task = expirationd.start("clean_all", cg.space.id, helpers.is_expired_true)
     -- default start element is nil, iterate all elements
     t.assert_equals(task.start_key(), nil)
     task:kill()
 
-    task = expirationd.start("clean_all", g.tree.id, helpers.is_expired_true,
+    task = expirationd.start("clean_all", cg.space.id, helpers.is_expired_true,
             {start_key = box.NULL})
     -- default start element is nil, iterate all elements
     t.assert_equals(task.start_key(), box.NULL)
     task:kill()
 
-    task = expirationd.start("clean_all", g.tree.id, helpers.is_expired_true,
+    task = expirationd.start("clean_all", cg.space.id, helpers.is_expired_true,
             {start_key = 1})
     t.assert_equals(task.start_key(), 1)
     task:kill()
 
-    task = expirationd.start("clean_all", g.tree.id, helpers.is_expired_true,
+    task = expirationd.start("clean_all", cg.space.id, helpers.is_expired_true,
             { index = "multipart_index", start_key = {1, 1}})
     t.assert_equals(task.start_key(), {1, 1})
     task:kill()
@@ -43,23 +48,26 @@ function g.test_passing()
     -- errors
     t.assert_error_msg_content_equals(
             "Supplied key type of part 0 does not match index part type: expected number",
-            expirationd.start, "clean_all", g.tree.id, helpers.is_expired_true,
+            expirationd.start, "clean_all", cg.space.id, helpers.is_expired_true,
             { start_key = "" })
     t.assert_error_msg_content_equals(
             "Supplied key type of part 0 does not match index part type: expected number",
-            expirationd.start, "clean_all", g.tree.id, helpers.is_expired_true,
+            expirationd.start, "clean_all", cg.space.id, helpers.is_expired_true,
             { index = "multipart_index", start_key = "" })
     t.assert_error_msg_content_equals(
             "Supplied key type of part 0 does not match index part type: expected number",
-            expirationd.start, "clean_all", g.tree.id, helpers.is_expired_true,
+            expirationd.start, "clean_all", cg.space.id, helpers.is_expired_true,
             { index = "multipart_index", start_key = {"", ""} })
     t.assert_error_msg_content_equals(
             "Supplied key type of part 1 does not match index part type: expected number",
-            expirationd.start, "clean_all", g.tree.id, helpers.is_expired_true,
+            expirationd.start, "clean_all", cg.space.id, helpers.is_expired_true,
             { index = "multipart_index", start_key = {1, ""} })
 end
 
-local function test_tree_index(space)
+function g.test_tree_index(cg)
+    t.skip_if(cg.params.index_type ~= 'TREE', 'Unsupported index type')
+
+    local space = cg.space
     -- without start key
     helpers.iteration_result = {}
     space:insert({1, "3"})
@@ -113,22 +121,16 @@ local function test_tree_index(space)
     task:kill()
 end
 
-function g.test_tree_index_vinyl()
-    test_tree_index(g.vinyl)
-end
+function g.test_hash_index(cg)
+    t.skip_if(cg.params.index_type ~= 'HASH', 'Unsupported index type')
 
-function g.test_tree_index()
-    test_tree_index(g.tree)
-end
-
-function g.test_hash_index()
     -- without start key
     helpers.iteration_result = {}
-    g.hash:insert({1, "3"})
-    g.hash:insert({2, "2"})
-    g.hash:insert({3, "1"})
+    cg.space:insert({1, "3"})
+    cg.space:insert({2, "2"})
+    cg.space:insert({3, "1"})
 
-    local task = expirationd.start("clean_all", g.hash.id, helpers.is_expired_debug)
+    local task = expirationd.start("clean_all", cg.space.id, helpers.is_expired_debug)
     -- wait for tuples expired
     helpers.retrying({}, function()
         t.assert_equals(helpers.iteration_result, {
@@ -141,11 +143,11 @@ function g.test_hash_index()
 
     -- box.NULL
     helpers.iteration_result = {}
-    g.hash:insert({1, "3"})
-    g.hash:insert({2, "2"})
-    g.hash:insert({3, "1"})
+    cg.space:insert({1, "3"})
+    cg.space:insert({2, "2"})
+    cg.space:insert({3, "1"})
 
-    task = expirationd.start("clean_all", g.hash.id, helpers.is_expired_debug,
+    task = expirationd.start("clean_all", cg.space.id, helpers.is_expired_debug,
             {start_key = box.NULL})
     -- wait for tuples expired
     helpers.retrying({}, function()
@@ -159,11 +161,11 @@ function g.test_hash_index()
 
     -- with start key
     helpers.iteration_result = {}
-    g.hash:insert({1, "3"})
-    g.hash:insert({2, "2"})
-    g.hash:insert({3, "1"})
+    cg.space:insert({1, "3"})
+    cg.space:insert({2, "2"})
+    cg.space:insert({3, "1"})
 
-    task = expirationd.start("clean_all", g.hash.id, helpers.is_expired_debug,
+    task = expirationd.start("clean_all", cg.space.id, helpers.is_expired_debug,
             {start_key = 2})
     -- wait for tuples expired
     helpers.retrying({}, function()

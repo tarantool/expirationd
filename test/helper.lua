@@ -51,14 +51,7 @@ local function create_space(space_name, engine)
 end
 
 function helpers.create_space_with_tree_index(engine)
-    -- Change space name when engine is vinyl to avoid intersection
-    -- with space "tree" with memtx engine.
-    -- To be removed in next commit.
-    local space_name = "tree"
-    if engine == "vinyl" then
-        space_name = "vinyl"
-    end
-    local space = create_space(space_name, engine)
+    local space = create_space("tree", engine)
 
     space:create_index("primary", {
         type = "TREE",

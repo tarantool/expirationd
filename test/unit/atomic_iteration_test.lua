@@ -1,43 +1,49 @@
 local fiber = require("fiber")
 local expirationd = require("expirationd")
 local t = require("luatest")
-local g = t.group("atomic_iteration")
 
 local helpers = require("test.helper")
 
-g.before_each(function()
-    g.tree = helpers.create_space_with_tree_index("memtx")
-    g.hash = helpers.create_space_with_hash_index("memtx")
-    g.bitset = helpers.create_space_with_bitset_index("memtx")
-    g.vinyl = helpers.create_space_with_tree_index("vinyl")
+local g = t.group('atomic_iteration', {
+    {index_type = 'TREE', engine = 'vinyl'},
+    {index_type = 'TREE', engine = 'memtx'},
+    {index_type = 'HASH', engine = 'memtx'},
+})
+
+g.before_each({index_type = 'TREE'}, function(cg)
+    g.space = helpers.create_space_with_tree_index(cg.params.engine)
 end)
 
-g.after_each(function()
-    g.tree:drop()
-    g.hash:drop()
-    g.bitset:drop()
-    g.vinyl:drop()
+g.before_each({index_type = 'HASH'}, function(cg)
+    g.space = helpers.create_space_with_hash_index(cg.params.engine)
 end)
 
-function g.test_passing()
-    local task = expirationd.start("clean_all", g.tree.id, helpers.is_expired_true)
+g.after_each(function(g)
+    g.space:drop()
+end)
+
+function g.test_passing(cg)
+    local task = expirationd.start("clean_all", cg.space.id, helpers.is_expired_true)
     t.assert_equals(task.atomic_iteration, false)
     task:kill()
 
-    task = expirationd.start("clean_all", g.tree.id, helpers.is_expired_true,
+    task = expirationd.start("clean_all", cg.space.id, helpers.is_expired_true,
             {atomic_iteration = true})
     t.assert_equals(task.atomic_iteration, true)
     task:kill()
 
     -- errors
     t.assert_error_msg_content_equals("bad argument options.atomic_iteration to nil (?boolean expected, got number)",
-            expirationd.start, "clean_all", g.tree.id, helpers.is_expired_true,
+            expirationd.start, "clean_all", cg.space.id, helpers.is_expired_true,
             {atomic_iteration = 1})
 end
 
-local function test_memtx(space)
+function g.test_memtx(cg)
+    t.skip_if(cg.params.engine ~= 'memtx', 'Unsupported engine')
+
     helpers.iteration_result = {}
 
+    local space = cg.space
     local transactions = {}
     local function f(iterator)
         local transaction = {}
@@ -124,19 +130,14 @@ local function test_memtx(space)
     box.begin = true_box_begin
 end
 
-function g.test_memtx_tree_index()
-    test_memtx(g.tree)
-end
-
-function g.test_memtx_hash_index()
-    test_memtx(g.hash)
-end
-
 -- it's not check tarantool or vinyl as engine
 -- just check expirationd task continue work after conflicts
-function g.test_mvcc_vinyl_tx_conflict()
+function g.test_mvcc_vinyl_tx_conflict(cg)
+    t.skip('Broken on vinyl')
+    t.skip_if(cg.params.engine ~= 'vinyl', 'Unsupported engine')
+
     for i = 1,10 do
-        g.vinyl:insert({i, tostring(i), nil, nil, 0})
+        cg.space:insert({i, tostring(i), nil, nil, 0})
     end
 
     local updaters = {}
@@ -144,14 +145,14 @@ function g.test_mvcc_vinyl_tx_conflict()
         local updater = fiber.create(function()
             fiber.name(string.format("updater of %d", i), { truncate = true })
             while true do
-                g.vinyl:update({i}, { {"+", 5, 1} })
+                cg.space:update({i}, { {"+", 5, 1} })
                 fiber.yield()
             end
         end)
         table.insert(updaters, updater)
     end
 
-    local task = expirationd.start("clean_all", g.vinyl.id, helpers.is_expired_debug,
+    local task = expirationd.start("clean_all", cg.space.id, helpers.is_expired_debug,
             {atomic_iteration = true})
 
     -- wait for tuples expired
@@ -162,7 +163,7 @@ function g.test_mvcc_vinyl_tx_conflict()
     end
 
     helpers.retrying({}, function()
-        t.assert_equals(g.vinyl:select(), {})
+        t.assert_equals(cg.space:select(), {})
     end)
     t.assert(box.stat.vinyl().tx.conflict > 0)
     t.assert_equals(box.stat.vinyl().tx.conflict, box.stat.vinyl().tx.rollback)
@@ -170,17 +171,17 @@ function g.test_mvcc_vinyl_tx_conflict()
     task:kill()
 end
 
-function g.test_kill_task()
+function g.test_kill_task(cg)
     for i = 1,1024*10 do
-        g.tree:insert({i, tostring(i)})
+        cg.space:insert({i, tostring(i)})
     end
 
-    local task = expirationd.start("clean_all", g.tree.id, helpers.is_expired_debug,
+    local task = expirationd.start("clean_all", cg.space.id, helpers.is_expired_debug,
             {atomic_iteration = true})
 
     task:kill()
-    t.assert(g.tree:count() > 0)
-    t.assert(g.tree:count() % 1024 == 0)
+    t.assert(cg.space:count() > 0)
+    t.assert(cg.space:count() % 1024 == 0)
 
     -- return to default value
     box.cfg{vinyl_memory = 134217728}

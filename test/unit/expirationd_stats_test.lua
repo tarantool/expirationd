@@ -1,26 +1,29 @@
 local expirationd = require("expirationd")
 local fiber = require("fiber")
 local t = require("luatest")
-local g = t.group("stats")
 
 local helpers = require("test.helper")
 
-g.before_each(function()
-    g.tree = helpers.create_space_with_tree_index("memtx")
-    g.hash = helpers.create_space_with_hash_index("memtx")
-    g.bitset = helpers.create_space_with_bitset_index("memtx")
-    g.vinyl = helpers.create_space_with_tree_index("vinyl")
+local g = t.group('expirationd_stats', {
+    {index_type = 'TREE', engine = 'vinyl'},
+    {index_type = 'TREE', engine = 'memtx'},
+    {index_type = 'HASH', engine = 'memtx'},
+})
+
+g.before_each({index_type = 'TREE'}, function(cg)
+    g.space = helpers.create_space_with_tree_index(cg.params.engine)
 end)
 
-g.after_each(function()
-    g.tree:drop()
-    g.hash:drop()
-    g.bitset:drop()
-    g.vinyl:drop()
+g.before_each({index_type = 'HASH'}, function(cg)
+    g.space = helpers.create_space_with_hash_index(cg.params.engine)
 end)
 
-function g.test_stats_basic()
-    local task = expirationd.start("stats_basic", g.tree.id, helpers.is_expired_true)
+g.after_each(function(g)
+    g.space:drop()
+end)
+
+function g.test_stats_basic(cg)
+    local task = expirationd.start("stats_basic", cg.space.id, helpers.is_expired_true)
     local stats = expirationd.stats("stats_basic")
     t.assert_equals(stats, {
         checked_count = 0,
@@ -31,22 +34,45 @@ function g.test_stats_basic()
     task:kill()
 end
 
-function g.test_stats_expired_count()
+function g.test_stats_expired_count(cg)
     helpers.iteration_result = {}
-    g.hash:insert({1, "a"})
-    g.hash:insert({2, "b"})
-    g.hash:insert({3, "c"})
+    cg.space:insert({1, "a"})
+    cg.space:insert({2, "b"})
+    cg.space:insert({3, "c"})
 
-    local task = expirationd.start("stats_expired_count", g.hash.id, helpers.is_expired_debug)
-    helpers.retrying({}, function()
-        t.assert_equals(helpers.iteration_result, {
+    local iteration_result
+    if cg.params.index_type == 'TREE' then
+        iteration_result = {
+            {1, "a"},
+            {2, "b"},
+            {3, "c"},
+        }
+    elseif cg.params.index_type == 'HASH' then
+        iteration_result = {
             {3, "c"},
             {2, "b"},
-            {1, "a"}
-        })
+            {1, "a"},
+        }
+    else
+        error('Expected result is undefined.')
+    end
+
+    expirationd.start("stats_expired_count", cg.space.id, helpers.is_expired_debug)
+    helpers.retrying({}, function()
+        t.assert_covers(helpers.iteration_result, iteration_result)
+    end)
+
+    helpers.iteration_result = {}
+    cg.space:insert({1, "a"})
+    cg.space:insert({2, "b"})
+    cg.space:insert({3, "c"})
+
+    local task = expirationd.start("stats_expired_count", cg.space.id, helpers.is_expired_debug)
+    helpers.retrying({}, function()
+        t.assert_equals(helpers.iteration_result, iteration_result)
     end)
     local stats = expirationd.stats("stats_expired_count")
-    t.assert_equals(stats, {
+    t.assert_items_equals(stats, {
         checked_count = 3,
         expired_count = 3,
         restarts = 1,
@@ -55,8 +81,8 @@ function g.test_stats_expired_count()
     task:kill()
 end
 
-function g.test_stats_restarts()
-    local task = expirationd.start("stats_restarts", g.tree.id, helpers.is_expired_true)
+function g.test_stats_restarts(cg)
+    local task = expirationd.start("stats_restarts", cg.space.id, helpers.is_expired_true)
     task:restart()
     task:restart()
     local stats = expirationd.stats("stats_restarts")
@@ -69,8 +95,8 @@ function g.test_stats_restarts()
     task:kill()
 end
 
-function g.test_stats_working_time()
-    local task = expirationd.start("stats_working_time", g.tree.id, helpers.is_expired_true)
+function g.test_stats_working_time(cg)
+    local task = expirationd.start("stats_working_time", cg.space.id, helpers.is_expired_true)
     local running_time = 1
     local threshold = 0.3
 

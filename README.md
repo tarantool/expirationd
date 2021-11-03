@@ -111,4 +111,7 @@ expirationd.start(job_name, space.id, is_expired, {
 
 ## Testing
 
-Simply start `make test`
+```
+$ make deps
+$ make test
+```

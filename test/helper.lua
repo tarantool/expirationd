@@ -3,7 +3,7 @@ local fio = require("fio")
 
 local helpers = require("luatest.helpers")
 
-local function create_space(space_name)
+local function create_space(space_name, engine)
     local space_format = {
         {name = "id", type = "number"},
         {name = "first_name", type = "string"},
@@ -15,18 +15,16 @@ local function create_space(space_name)
         {name = "functional_field", is_nullable = true},
     }
 
-    local options = {}
-    if space_name == "vinyl" then
-        options.engine = "vinyl"
-    end
-    local space = box.schema.create_space(space_name, options)
+    local space = box.schema.create_space(space_name, {
+        engine = engine
+    })
     space:format(space_format)
 
     return space
 end
 
-function helpers.create_space_with_tree_index()
-    local space = create_space("tree")
+function helpers.create_space_with_tree_index(engine)
+    local space = create_space("tree", engine)
     space:create_index("primary", {type = "TREE", parts={ 1 }})
     space:create_index("index_for_first_name", {type = "TREE", parts={ 2 }})
     space:create_index("multipart_index", {type = "TREE", parts={ {3, is_nullable = true}, {4, is_nullable = true} }})
@@ -44,8 +42,8 @@ function helpers.create_space_with_tree_index()
     return space
 end
 
-function helpers.create_space_with_vinyl()
-    local space = create_space("vinyl")
+function helpers.create_space_with_vinyl(engine)
+    local space = create_space("vinyl", engine)
     space:create_index("primary", {type = "TREE", parts={ 1 }})
     space:create_index("index_for_first_name", {type = "TREE", parts={ 2 }})
     space:create_index("multipart_index", {type = "TREE", parts={ {3, is_nullable = true}, {4, is_nullable = true} }})
@@ -61,8 +59,8 @@ function helpers.create_space_with_vinyl()
     return space
 end
 
-function helpers.create_space_with_hash_index()
-    local space = create_space("hash")
+function helpers.create_space_with_hash_index(engine)
+    local space = create_space("hash", engine)
     space:create_index("primary", {type = "HASH", parts={ 1 }} )
     space:create_index("index_for_first_name", {type = "HASH", parts={ 2 }} )
     space:create_index("multipart_index", {type = "HASH", parts={ {1}, {2} }})
@@ -70,8 +68,8 @@ function helpers.create_space_with_hash_index()
     return space
 end
 
-function helpers.create_space_with_bitset_index()
-    local space = create_space("bitset")
+function helpers.create_space_with_bitset_index(engine)
+    local space = create_space("bitset", engine)
     space:create_index("primary", {type = "TREE", parts={ 1 }})
     space:create_index("index_for_first_name",
             {type = "BITSET", parts={ {field = 2, type = "string"} }, unique = false})

@@ -63,24 +63,28 @@ function helpers.create_space_with_tree_index(engine)
     space:create_index("primary", {
         type = "TREE",
         parts = {
-            1
+            {
+                field = 1
+            }
         }
     })
     space:create_index("index_for_first_name", {
         type = "TREE",
         parts = {
-            2
+            {
+                field = 2
+            }
         }
     })
     space:create_index("multipart_index", {
         type = "TREE",
         parts = {
             {
-                3,
+                field = 3,
                 is_nullable = true
             },
             {
-                4,
+                field = 4,
                 is_nullable = true
             }
         }
@@ -89,7 +93,7 @@ function helpers.create_space_with_tree_index(engine)
         type = "TREE",
         parts = {
             {
-                5,
+                field = 5,
                 is_nullable = true
             }
         },
@@ -101,7 +105,7 @@ function helpers.create_space_with_tree_index(engine)
             type = "TREE",
             parts = {
                 {
-                    6,
+                    field = 6,
                     type = "scalar",
                     path = "age",
                     is_nullable = true
@@ -112,7 +116,7 @@ function helpers.create_space_with_tree_index(engine)
             type = "TREE",
             parts = {
                 {
-                    7,
+                    field = 7,
                     type = "str",
                     path = "data[*].name"
                 }
@@ -123,7 +127,7 @@ function helpers.create_space_with_tree_index(engine)
                 type = "TREE",
                 parts = {
                     {
-                        1,
+                        field = 1,
                         type = "string"
                     }
                 },
@@ -140,23 +144,27 @@ function helpers.create_space_with_hash_index(engine)
     space:create_index("primary", {
         type = "HASH",
         parts = {
-            1
+            {
+                field = 1
+            }
         }
     })
     space:create_index("index_for_first_name", {
         type = "HASH",
         parts = {
-            2
+            {
+                field = 2
+            }
         }
     })
     space:create_index("multipart_index", {
         type = "HASH",
         parts = {
             {
-                1
+                field = 1
             },
             {
-                2
+                field = 2
             }
          }
      })
@@ -169,7 +177,9 @@ function helpers.create_space_with_bitset_index(engine)
     space:create_index("primary", {
         type = "TREE",
         parts = {
-            1
+            {
+                field = 1
+            }
         }
     })
     space:create_index("index_for_first_name", {

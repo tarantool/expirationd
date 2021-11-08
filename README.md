@@ -59,10 +59,9 @@ Note about using expirationd with replication: by default expirationd should
 process tasks only on the writeable instance, it means that expirationd *will
 not* start task processing on a replica. Here the word 'replica' means an
 instance with at least one configured upstream, it's an option
-`box.cfg.replication_source` (`box.cfg.replication` for Tarantool 1.7.6+). One
-can force running task on replica with option `force` in `start()` module
-function. The option force let a user control where to start task processing
-and where don't.
+`box.cfg.replication_source`. One can force running task on replica with option
+`force` in `start()` module function. The option force let a user control where
+to start task processing and where don't.
 
 ### Examples
 

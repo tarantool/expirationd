@@ -31,6 +31,26 @@ Table below may help you to choose a proper module for your requirements:
 | expirationd   | Medium (sec)  | Yes          | Yes                 | synchronous (fiber with condition) |
 | moonwalker    | NA            | No           | Yes                 | asynchronous (using crontab etc)   |
 
+### Prerequisites
+
+* Tarantool 1.10+ (`tarantool` package, see [documentation](https://www.tarantool.io/en/download/)).
+
+### Installation
+
+You can:
+
+* Install the module using `tarantoolctl`:
+
+  ``` bash
+  tarantoolctl rocks install expirationd
+  ```
+
+* Install the module using LuaRocks:
+
+  ``` bash
+  luarocks install --local --server=https://rocks.tarantool.org expirationd
+  ```
+
 ### Documentation
 
 See API documentation in https://tarantool.github.io/expirationd/

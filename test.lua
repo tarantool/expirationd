@@ -343,7 +343,14 @@ test:test('simple expires test',  function(test)
     test:is(task.name, "test", 'checking task name')
     local restarts = 1
     test:is(task.restarts, restarts, 'checking restart count')
-    test:is(task.expired_tuples_count, 7, 'Test task executed and moved to archive')
+    local res = wait_cond(
+        function()
+            local task = expirationd.task("test")
+            local cnt = task.expired_tuples_count
+            return cnt == 7
+        end
+    )
+    test:is(res, true, 'Test task executed and moved to archive')
     expirationd.kill("test")
 end)
 

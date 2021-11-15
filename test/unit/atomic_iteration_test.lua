@@ -133,7 +133,6 @@ end
 -- it's not check tarantool or vinyl as engine
 -- just check expirationd task continue work after conflicts
 function g.test_mvcc_vinyl_tx_conflict(cg)
-    t.skip('Broken on vinyl')
     t.skip_if(cg.params.engine ~= 'vinyl', 'Unsupported engine')
 
     for i = 1,10 do
@@ -171,18 +170,26 @@ function g.test_mvcc_vinyl_tx_conflict(cg)
     task:kill()
 end
 
+-- Create a task that use atomic_iteration and check that task is gone after
+-- kill.
 function g.test_kill_task(cg)
-    for i = 1,1024*10 do
+    local task_name = 'clean_all'
+
+    for i = 1, 100 do
         cg.space:insert({i, tostring(i)})
     end
 
-    local task = expirationd.start("clean_all", cg.space.id, helpers.is_expired_debug,
-            {atomic_iteration = true})
-
+    local task = expirationd.start(task_name, cg.space.id, helpers.is_expired_debug, {
+        atomic_iteration = true,
+        tuples_per_iteration = 10,
+    })
     task:kill()
-    t.assert(cg.space:count() > 0)
-    t.assert(cg.space:count() % 1024 == 0)
 
-    -- return to default value
-    box.cfg{vinyl_memory = 134217728}
+    -- There are two methods to know about task state:
+    -- expirationd.task(task_name) and expirationd.stats() that returns
+    -- statistics for each task. expirationd.task(task_name) raise error if
+    -- task is not found. So we use stats() here and check that there are no
+    -- stats for task with our task name.
+    local stats = expirationd.stats()
+    t.assert_equals(stats[task_name], nil)
 end

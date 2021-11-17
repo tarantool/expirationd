@@ -237,4 +237,28 @@ function helpers.is_expired_debug(_, tuple)
     return true
 end
 
+function helpers.tarantool_version()
+    local major_minor_patch = _G._TARANTOOL:split('-', 1)[1]
+    local major_minor_patch_parts = major_minor_patch:split('.', 2)
+
+    local major = tonumber(major_minor_patch_parts[1])
+    local minor = tonumber(major_minor_patch_parts[2])
+    local patch = tonumber(major_minor_patch_parts[3])
+
+    return major, minor, patch
+end
+
+function helpers.vinyl_is_broken()
+    -- Blocked by https://github.com/tarantool/tarantool/issues/6448
+    local major, minor, patch = helpers.tarantool_version()
+
+    -- Since Tarantool 1.10.11.
+    local broken_v1_10 = major >= 1 and (minor > 10 or minor == 10 and patch >= 11)
+
+    -- Tarantool >= 2.1.0 and < 2.8.2.
+    local broken_v2 = (major >= 2 and major < 3) and (minor >= 1 and minor < 8 or minor == 8 and patch <= 2)
+
+    return broken_v1_10 or broken_v2
+end
+
 return helpers

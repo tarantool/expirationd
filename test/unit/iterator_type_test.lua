@@ -11,6 +11,8 @@ local g = t.group('iterator_type', {
 })
 
 g.before_each({index_type = 'TREE'}, function(cg)
+    t.skip_if(cg.params.engine == 'vinyl' and helpers.vinyl_is_broken(),
+        'Blocked by https://github.com/tarantool/tarantool/issues/6448')
     g.space = helpers.create_space_with_tree_index(cg.params.engine)
 end)
 

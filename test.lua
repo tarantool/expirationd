@@ -234,9 +234,8 @@ init_box()
 -- TAP TESTS:
 -- 4. kill zombie test
 -- 7. restart test
--- 8. complex key test
 -- ========================================================================= --
-test:plan(3)
+test:plan(2)
 
 test:test("zombie task kill", function(test)
     test:plan(4)
@@ -374,36 +373,6 @@ test:test("restart test", function(test)
     expirationd.kill("test2")
     expirationd.kill("test3")
     expirationd.kill("test4")
-end)
-
-test:test("complex key test", function(test)
-    test:plan(2)
-    local tuples_count = 10
-    local space_name = 'complex_test'
-    local space = box.space[space_name]
-
-    for i = 1, tuples_count do
-        space:insert{i, i*i + 100, fiber.time() + 1}
-    end
-
-    expirationd.start(
-        "test",
-        space_name,
-        check_tuple_expire_by_timestamp,
-        {
-            args = {
-                field_no = 3,
-                archive_space_id = archive_space_id
-            },
-            tuples_per_iteration = 10,
-            full_scan_time = 1,
-        }
-    )
-
-    test:is(space:count{}, tuples_count, 'tuples are in space')
-    fiber.sleep(3.1)
-    test:is(space:count{}, 0, 'all tuples are expired with default function')
-    expirationd.kill("test")
 end)
 
 os.exit(test:check() and 0 or 1)

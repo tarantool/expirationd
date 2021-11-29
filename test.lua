@@ -272,49 +272,16 @@ init_box()
 
 -- ========================================================================= --
 -- TAP TESTS:
--- 1. not expire test,
--- 2. kill zombie test
--- 3. multiple expires test
--- 4. default drop function test
--- 5. restart test
--- 6. complex key test
--- 7. delays and scan callbacks test
--- 8. error callback test
+-- 1. kill zombie test
+-- 2. multiple expires test
+-- 3. default drop function test
+-- 4. restart test
+-- 5. complex key test
+-- 6. delays and scan callbacks test
+-- 7. error callback test
 -- ========================================================================= --
 
-test:plan(8)
-
-test:test("not expired task",  function(test)
-    test:plan(2)
-
-    truncate(space_id)
-
-    local tuples_count = 5
-    local time = fiber.time()
-    for i = 1, tuples_count do
-        add_entry(space_id, i, get_email(i), time + 2)
-    end
-
-    expirationd.start(
-        "test",
-        space_id,
-        check_tuple_expire_by_timestamp,
-        {
-            process_expired_tuple = put_tuple_to_archive,
-            args = {
-                field_no = 3,
-                archive_space_id = archive_space_id,
-            },
-        }
-    )
-    local task = expirationd.task("test")
-    -- after run tuples is not expired
-    test:is(task.expired_tuples_count, 0, 'checking expired tuples empty')
-    -- wait 3 seconds and check: all tuples must be expired
-    fiber.sleep(3)
-    test:is(task.expired_tuples_count, tuples_count, 'checking expired tuples count')
-    expirationd.kill("test")
-end)
+test:plan(7)
 
 test:test("zombie task kill", function(test)
     test:plan(4)

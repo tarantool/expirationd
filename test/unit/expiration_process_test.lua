@@ -212,3 +212,32 @@ function g.test_check_tuples_not_expired_by_timestamp(cg)
         t.assert_equals(space_archive:count(), total)
     end)
 end
+
+function g.test_default_tuple_drop_function(cg)
+    local space = cg.space
+    local task_name = cg.task_name
+    local space_archive = cg.space_archive
+
+    local total = 10
+    local time = fiber.time()
+    for i = 1, total do
+        space:insert({i, tostring(i), time})
+    end
+    -- Tuples are in space.
+    t.assert_equals(space:count{}, total)
+
+    cg.task = expirationd.start(task_name, space.id, check_tuple_expire_by_timestamp,
+        {
+            args = {
+                field_no = 3,
+            },
+        })
+    local task = cg.task
+
+    -- All tuples are expired with default function.
+    helpers.retrying({}, function()
+        t.assert_equals(task.expired_tuples_count, total)
+        t.assert_equals(space_archive:count(), 0)
+        t.assert_equals(space:count{}, 0)
+    end)
+end

@@ -5,7 +5,7 @@ local helpers = require("luatest.helpers")
 
 helpers.project_root = fio.dirname(debug.sourcedir())
 
-local function create_space(space_name, engine)
+function helpers.create_space(space_name, engine)
     local space_format = {
         {
             name = "id",
@@ -53,7 +53,7 @@ local function create_space(space_name, engine)
 end
 
 function helpers.create_space_with_tree_index(engine)
-    local space = create_space("tree", engine)
+    local space = helpers.create_space("tree", engine)
 
     space:create_index("primary", {
         type = "TREE",
@@ -135,7 +135,7 @@ function helpers.create_space_with_tree_index(engine)
 end
 
 function helpers.create_space_with_hash_index(engine)
-    local space = create_space("hash", engine)
+    local space = helpers.create_space("hash", engine)
     space:create_index("primary", {
         type = "HASH",
         parts = {
@@ -168,7 +168,7 @@ function helpers.create_space_with_hash_index(engine)
 end
 
 function helpers.create_space_with_bitset_index(engine)
-    local space = create_space("bitset", engine)
+    local space = helpers.create_space("bitset", engine)
     space:create_index("primary", {
         type = "TREE",
         parts = {

@@ -1,6 +1,5 @@
 #!/usr/bin/env tarantool
 
-local clock = require('clock')
 local fun = require('fun')
 local log = require('log')
 local tap = require('tap')
@@ -15,45 +14,6 @@ strict.on()
 -- ========================================================================= --
 --                          local support functions                          --
 -- ========================================================================= --
-
--- Strip pcall()'s true or re-raise catched error.
-local function wait_cond_finish(status, ...)
-    if not status then
-        error((...), 2)
-     end
-
-     return ...
-end
-
--- Block until the condition function returns a positive value
--- (anything except `nil` and `false`) or until the timeout
--- exceeds. Return the result of the last invocation of the
--- condition function (it is `false` or `nil` in case of exiting
--- by the timeout).
---
--- If the condition function raises a Lua error, wait_cond()
--- continues retrying. If the latest attempt raises an error (and
--- we hit a timeout), the error will be re-raised.
-local function wait_cond(cond, timeout, delay)
-    assert(type(cond) == 'function')
-
-    local timeout = timeout or 60
-    local delay = delay or 0.001
-
-    local start_time = clock.monotonic()
-    local res = {pcall(cond)}
-
-    while not res[1] or not res[2] do
-        local work_time = clock.monotonic() - start_time
-        if work_time > timeout then
-            return wait_cond_finish(res[1], res[2])
-        end
-        fiber.sleep(delay)
-        res = {pcall(cond)}
-    end
-
-    return wait_cond_finish(res[1], res[2])
-end
 
 -- get field
 local function get_field(tuple, field_no)
@@ -273,13 +233,12 @@ init_box()
 -- ========================================================================= --
 -- TAP TESTS:
 -- 4. kill zombie test
--- 5. multiple expires test
 -- 7. restart test
 -- 8. complex key test
 -- 9. delays and scan callbacks test
 -- 10. error callback test
 -- ========================================================================= --
-test:plan(6)
+test:plan(5)
 
 test:test("zombie task kill", function(test)
     test:plan(4)
@@ -321,59 +280,6 @@ test:test("zombie task kill", function(test)
     -- check is first fiber killed
     test:is(task.guardian_fiber:status(), "suspended", 'checking status of fiber')
     test:is(fiber_obj:status(), 'dead', "Zombie task was killed and restarted")
-    expirationd.kill("test")
-end)
-
-test:test("multiple expires test", function(test)
-    test:plan(2)
-    local tuples_count = 10
-    local time = fiber.time()
-    local space_name = 'exp_test'
-    local expire_delta = 0.5
-
-    for i = 1, tuples_count do
-        box.space[space_name]:delete{i}
-        if i <= tuples_count / 2 then
-            time = time + expire_delta
-        end
-        box.space[space_name]:insert{i, get_email(i), time}
-    end
-
-    expirationd.start(
-        "test",
-        space_name,
-        check_tuple_expire_by_timestamp,
-        {
-            process_expired_tuple = put_tuple_to_archive,
-            args = {
-                field_no = 3,
-                archive_space_id = archive_space_id,
-            },
-            tuples_per_iteration = 5,
-            full_scan_time = 1,
-        }
-    )
-    -- test first expire part
-    local res = wait_cond(
-        function()
-            local task = expirationd.task("test")
-            local cnt = task.expired_tuples_count
-            return cnt < tuples_count and cnt > 0
-        end,
-        2 + expire_delta
-    )
-    test:ok(res, true, 'First part expires done')
-
-    -- test second expire part
-    res = wait_cond(
-        function()
-            local task = expirationd.task("test")
-            local cnt = task.expired_tuples_count
-            return cnt == tuples_count
-        end,
-        4
-    )
-    test:ok(res, true, 'Multiple expires done')
     expirationd.kill("test")
 end)
 
@@ -436,7 +342,7 @@ test:test("restart test", function(test)
         }
     )
 
-    local fiber_cnt = len(fiber.info())
+    local old_fiber_cnt = len(fiber.info())
     local old_expd = expirationd
 
     local chan = fiber.channel(1)
@@ -462,7 +368,9 @@ test:test("restart test", function(test)
     test:is(space:count{}, 0, 'all tuples are expired')
 
     task1:statistics()
-    test:is(fiber_cnt, len(fiber.info()), "check for absence of ghost fibers")
+    local fiber_cnt = len(fiber.info())
+    -- After update the fiber named "main" may disappear.
+    test:ok(fiber_cnt <= old_fiber_cnt and old_fiber_cnt <= fiber_cnt + 1, "check for absence of ghost fibers")
 
     expirationd.kill("test1")
     expirationd.kill("test2")

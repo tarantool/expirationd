@@ -241,3 +241,46 @@ function g.test_default_tuple_drop_function(cg)
         t.assert_equals(space:count{}, 0)
     end)
 end
+
+g.before_test('test_tuples_per_iteration', function(cg)
+    local space = cg.space
+    local space_archive = cg.space_archive
+    local task_name = cg.task_name
+
+    local total = 10
+    local time = fiber.time()
+    for i = 1, total do
+        space:insert({i, tostring(i), time})
+    end
+    t.assert_equals(space:count{}, total)
+
+    cg.task = expirationd.start(task_name, space.id, check_tuple_expire_by_timestamp,
+            {
+                process_expired_tuple = put_tuple_to_archive,
+                args = {
+                    field_no = 3,
+                    archive_space_id = space_archive.id
+                },
+                iteration_delay = 1,
+                vinyl_assumed_space_len = 5, -- iteration_delay will be 1 sec
+                tuples_per_iteration = 5,
+            })
+    cg.total = total
+end)
+
+function g.test_tuples_per_iteration(cg)
+    local task = cg.task
+    local total = cg.total
+    
+    -- Test first expire part.
+    local worker_fiber = task.worker_fiber
+    helpers.retrying({}, function()
+        t.assert_equals(task.expired_tuples_count, total / 2)
+        t.assert_equals(worker_fiber:status(), 'suspended')
+    end)
+
+    -- Test second expire part.
+    helpers.retrying({}, function()
+        t.assert_equals(task.expired_tuples_count, total)
+    end)
+end

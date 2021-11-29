@@ -106,3 +106,57 @@ function g.test_archive_by_timestamp(cg)
         t.assert_ge(task.expired_tuples_count, 7)
     end)
 end
+
+function g.test_broken_is_tuple_expired(cg)
+    local space = cg.space
+    local space_archive = cg.space_archive
+    local task_name = cg.task_name
+
+    local full_scan_counter = 0
+    local task = expirationd.start(
+            task_name,
+            space.id,
+            helpers.error_function,
+            {
+                process_expired_tuple = put_tuple_to_archive,
+                args = {
+                    field_no = 3,
+                    archive_space_id = space_archive.id,
+                },
+                on_full_scan_complete = function() full_scan_counter = full_scan_counter + 1 end
+            }
+    )
+    t.assert_equals(task.restarts, 1)
+
+    -- Check that task is alive and running.
+    helpers.retrying({}, function()
+        t.assert_ge(full_scan_counter, 3)
+    end)
+end
+
+function g.test_broken_process_expired_tuple(cg)
+    local space = cg.space
+    local space_archive = cg.space_archive
+    local task_name = cg.task_name
+
+    local full_scan_counter = 0
+    local task = expirationd.start(
+            task_name,
+            space.id,
+            check_tuple_expire_by_timestamp,
+            {
+                process_expired_tuple = helpers.error_function,
+                args = {
+                    field_no = 3,
+                    archive_space_id = space_archive.id,
+                },
+                on_full_scan_complete = function() full_scan_counter = full_scan_counter + 1 end
+            }
+    )
+    t.assert_equals(task.restarts, 1)
+
+    -- Check that task is alive and running.
+    helpers.retrying({}, function()
+        t.assert_ge(full_scan_counter, 3)
+    end)
+end

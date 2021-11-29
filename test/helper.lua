@@ -287,8 +287,10 @@ function helpers.memtx_func_index_is_supported()
         (major >= 3)
 end
 
-function helpers.error_function()
-    error()
+function helpers.get_error_function(error_msg)
+    return function()
+        error(error_msg)
+    end
 end
 
 return helpers

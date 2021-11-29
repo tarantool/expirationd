@@ -116,7 +116,7 @@ function g.test_broken_is_tuple_expired(cg)
     local task = expirationd.start(
             task_name,
             space.id,
-            helpers.error_function,
+            helpers.get_error_function(),
             {
                 process_expired_tuple = put_tuple_to_archive,
                 args = {
@@ -145,7 +145,7 @@ function g.test_broken_process_expired_tuple(cg)
             space.id,
             check_tuple_expire_by_timestamp,
             {
-                process_expired_tuple = helpers.error_function,
+                process_expired_tuple = helpers.get_error_function(),
                 args = {
                     field_no = 3,
                     archive_space_id = space_archive.id,
@@ -271,7 +271,7 @@ end)
 function g.test_tuples_per_iteration(cg)
     local task = cg.task
     local total = cg.total
-    
+
     -- Test first expire part.
     local worker_fiber = task.worker_fiber
     helpers.retrying({}, function()

@@ -235,10 +235,9 @@ init_box()
 -- 4. kill zombie test
 -- 7. restart test
 -- 8. complex key test
--- 9. delays and scan callbacks test
 -- 10. error callback test
 -- ========================================================================= --
-test:plan(5)
+test:plan(4)
 
 test:test("zombie task kill", function(test)
     test:plan(4)
@@ -406,73 +405,6 @@ test:test("complex key test", function(test)
     fiber.sleep(3.1)
     test:is(space:count{}, 0, 'all tuples are expired with default function')
     expirationd.kill("test")
-end)
-
-test:test('delays and scan callbacks test', function(test)
-    test:plan(4)
-
-    -- Prepare the space.
-    local tuples_count = 10
-    local time = fiber.time()
-    local space_name = 'delays_test'
-    local expire_delta = 10
-
-    for i = 1, tuples_count do
-        box.space[space_name]:insert{i, time + expire_delta}
-    end
-
-    -- To check all delays (iteration and full scan), two full scan
-    -- iterations will be performed.
-    local first_iteration_done = false
-    local task_name = 'delays_task'
-    local cond = fiber.cond()
-    local start_time = 0
-    local complete_time = 0
-
-    local iteration_delay = 1
-    local full_scan_delay = 2
-
-    expirationd.start(
-        task_name,
-        space_name,
-        check_tuple_expire_by_timestamp,
-        {
-            args = {
-                field_no = 2
-            },
-            tuples_per_iteration = 10,
-            iteration_delay = iteration_delay,
-            full_scan_delay = full_scan_delay,
-            on_full_scan_start = function(task)
-                start_time = fiber.time()
-                if first_iteration_done then
-                    -- Check the full scan delay with an accuracy
-                    -- of 0.1 seconds.
-                    test:ok(math.abs(start_time - complete_time -
-                        full_scan_delay) < 0.1, 'test full scan delay')
-                end
-            end,
-            on_full_scan_success = function(task)
-                -- Must be called twice.
-                test:ok(true, 'test success callback invoke')
-            end,
-            on_full_scan_complete = function(task)
-                complete_time = fiber.time()
-                if first_iteration_done then
-                    cond:signal()
-                else
-                    -- Check the accuracy of iteration delay,
-                    -- it should be not beyond 1 second.
-                    test:ok(math.abs(complete_time - start_time -
-                        iteration_delay) < 1, 'test iteration delay')
-                    first_iteration_done = true
-                end
-            end
-        }
-    )
-
-    cond:wait()
-    expirationd.kill(task_name)
 end)
 
 test:test('error callback test', function(test)

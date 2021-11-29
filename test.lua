@@ -273,13 +273,12 @@ init_box()
 -- ========================================================================= --
 -- TAP TESTS:
 -- 1. kill zombie test
--- 2. multiple expires test
--- 3. restart test
--- 4. complex key test
--- 5. delays and scan callbacks test
--- 6. error callback test
+-- 2. restart test
+-- 3. complex key test
+-- 4. delays and scan callbacks test
+-- 5. error callback test
 -- ========================================================================= --
-test:plan(6)
+test:plan(5)
 
 test:test("zombie task kill", function(test)
     test:plan(4)
@@ -321,59 +320,6 @@ test:test("zombie task kill", function(test)
     -- check is first fiber killed
     test:is(task.guardian_fiber:status(), "suspended", 'checking status of fiber')
     test:is(fiber_obj:status(), 'dead', "Zombie task was killed and restarted")
-    expirationd.kill("test")
-end)
-
-test:test("multiple expires test", function(test)
-    test:plan(2)
-    local tuples_count = 10
-    local time = fiber.time()
-    local space_name = 'exp_test'
-    local expire_delta = 0.5
-
-    for i = 1, tuples_count do
-        box.space[space_name]:delete{i}
-        if i <= tuples_count / 2 then
-            time = time + expire_delta
-        end
-        box.space[space_name]:insert{i, get_email(i), time}
-    end
-
-    expirationd.start(
-        "test",
-        space_name,
-        check_tuple_expire_by_timestamp,
-        {
-            process_expired_tuple = put_tuple_to_archive,
-            args = {
-                field_no = 3,
-                archive_space_id = archive_space_id,
-            },
-            tuples_per_iteration = 5,
-            full_scan_time = 1,
-        }
-    )
-    -- test first expire part
-    local res = wait_cond(
-        function()
-            local task = expirationd.task("test")
-            local cnt = task.expired_tuples_count
-            return cnt < tuples_count and cnt > 0
-        end,
-        2 + expire_delta
-    )
-    test:ok(res, true, 'First part expires done')
-
-    -- test second expire part
-    res = wait_cond(
-        function()
-            local task = expirationd.task("test")
-            local cnt = task.expired_tuples_count
-            return cnt == tuples_count
-        end,
-        4
-    )
-    test:ok(res, true, 'Multiple expires done')
     expirationd.kill("test")
 end)
 

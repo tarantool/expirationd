@@ -4,7 +4,6 @@ local clock = require('clock')
 local fun = require('fun')
 local log = require('log')
 local tap = require('tap')
-local yaml = require('yaml')
 local fiber = require('fiber')
 local strict = require('strict')
 local expirationd = require('expirationd')
@@ -120,15 +119,6 @@ local function put_tuple_to_archive(space_id, args, tuple)
     end
 end
 
-local nonexistentfunction = nil
-
-local function check_tuple_expire_by_timestamp_error(args, tuple)
-   nonexistentfunction()
-end
-
-local function put_tuple_to_archive_error(space_id, args, tuple)
-   nonexistentfunction()
-end
 -- ========================================================================= --
 -- Expiration module test functions
 -- ========================================================================= --
@@ -282,50 +272,17 @@ init_box()
 
 -- ========================================================================= --
 -- TAP TESTS:
--- 1. errors test,
--- 2. not expire test,
--- 3. kill zombie test
--- 4. multiple expires test
--- 5. default drop function test
--- 6. restart test
--- 7. complex key test
--- 8. delays and scan callbacks test
--- 9. error callback test
+-- 1. not expire test,
+-- 2. kill zombie test
+-- 3. multiple expires test
+-- 4. default drop function test
+-- 5. restart test
+-- 6. complex key test
+-- 7. delays and scan callbacks test
+-- 8. error callback test
 -- ========================================================================= --
 
-test:plan(9)
-
-test:test("execution error test", function (test)
-    test:plan(2)
-    expirationd.start(
-        "test",
-        space_id,
-        check_tuple_expire_by_timestamp_error,
-        {
-            process_expired_tuple = put_tuple_to_archive,
-            args = {
-                field_no = 3,
-                archive_space_id = archive_space_id,
-            },
-        }
-    )
-    test:is(expirationd.task("test").restarts, 1, 'checking restart count')
-
-    expirationd.start("test",
-        space_id,
-        check_tuple_expire_by_timestamp,
-        {
-            process_expired_tuple = put_tuple_to_archive_error,
-            args = {
-                field_no = 3,
-                archive_space_id = archive_space_id,
-            },
-        }
-    )
-    local task = expirationd.task("test")
-    test:is(task.restarts, 1, 'Error task executed')
-    expirationd.kill("test")
-end)
+test:plan(8)
 
 test:test("not expired task",  function(test)
     test:plan(2)

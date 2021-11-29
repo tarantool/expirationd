@@ -171,3 +171,44 @@ function g.test_broken_process_expired_tuple(cg)
         t.assert_ge(full_scan_counter, 3)
     end)
 end
+
+function g.test_check_tuples_not_expired_by_timestamp(cg)
+    local space = cg.space
+    local space_archive = cg.space_archive
+    local task_name = cg.task_name
+
+    local total = 5
+    local time = fiber.time()
+    for i = 1, total do
+        space:insert({i, tostring(i), time + 2})
+    end
+
+    cg.full_scan_counter = 0
+    cg.task = expirationd.start(task_name, space.id, check_tuple_expire_by_timestamp,
+        {
+            process_expired_tuple = put_tuple_to_archive,
+            args = {
+                field_no = 3,
+                archive_space_id = space_archive.id
+            },
+            on_full_scan_complete = function()
+                cg.full_scan_counter = cg.full_scan_counter + 1
+            end
+        })
+    local task = cg.task
+
+    -- Tuples are not expired after run.
+    -- Сheck that after the expiration starts,
+    -- no tuples will be archived since the timestamp has an advantage of 2 seconds.
+    helpers.retrying({}, function()
+        t.assert(cg.full_scan_counter > 0)
+        t.assert_equals(task.expired_tuples_count, 0)
+        t.assert_equals(space_archive:count(), 0)
+    end)
+
+    -- Wait and check: all tuples must be expired.
+    helpers.retrying({}, function()
+        t.assert_equals(task.expired_tuples_count, total)
+        t.assert_equals(space_archive:count(), total)
+    end)
+end

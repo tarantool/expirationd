@@ -282,80 +282,18 @@ init_box()
 
 -- ========================================================================= --
 -- TAP TESTS:
--- 1. simple archive test.
--- 2. errors test,
--- 3. not expire test,
--- 4. kill zombie test
--- 5. multiple expires test
--- 6. default drop function test
--- 7. restart test
--- 8. complex key test
--- 9. delays and scan callbacks test
--- 10. error callback test
+-- 1. errors test,
+-- 2. not expire test,
+-- 3. kill zombie test
+-- 4. multiple expires test
+-- 5. default drop function test
+-- 6. restart test
+-- 7. complex key test
+-- 8. delays and scan callbacks test
+-- 9. error callback test
 -- ========================================================================= --
-test:plan(10)
 
-test:test('simple expires test',  function(test)
-    test:plan(4)
-    -- put test tuples
-    log.info("-------------- put ------------")
-    log.info("put to space " .. prefix_space_id(space_id))
-
-    -- puts:
-    -- 5 tuples with the current time as an expiration (should be deleted)
-    -- 5 tuples with the current time + 120s as an expiration
-    -- 2 tuples with an invalid time (should be deleted)
-    put_test_tuples(space_id, 10, 120)
-
-    -- print before
-    log.info("------------- print -----------")
-    log.info("before print space " .. prefix_space_id(space_id), "\n")
-    print_test_tuples(space_id)
-    log.info("before print archive space " .. prefix_space_id(archive_space_id), "\n")
-    print_test_tuples(archive_space_id)
-
-    log.info("-------------- run ------------")
-    expirationd.start(
-        "test",
-        space_id,
-        check_tuple_expire_by_timestamp,
-        {
-            process_expired_tuple = put_tuple_to_archive,
-            args = {
-                field_no = 3,
-                archive_space_id = archive_space_id
-            },
-        }
-    )
-    local start_time = fiber.time()
-
-    -- sure that "test" task will be executed
-    fiber.yield()
-
-    -- print after
-    log.info("------------- print -----------")
-    log.info("After print space " .. prefix_space_id(space_id), "\n")
-    print_test_tuples(space_id)
-    log.info("after print archive space " .. prefix_space_id(archive_space_id), "\n")
-    print_test_tuples(archive_space_id)
-
-    expirationd.tasks()
-
-    local task = expirationd.task("test")
-    test:is(task.start_time, start_time, 'checking start time')
-    test:is(task.name, "test", 'checking task name')
-    local restarts = 1
-    test:is(task.restarts, restarts, 'checking restart count')
-    local res = wait_cond(
-        function()
-            local task = expirationd.task("test")
-            local cnt = task.expired_tuples_count
-            return cnt == 7
-        end
-    )
-    test:is(res, true, 'Test task executed and moved to archive')
-    expirationd.kill("test")
-end)
+test:plan(9)
 
 test:test("execution error test", function (test)
     test:plan(2)

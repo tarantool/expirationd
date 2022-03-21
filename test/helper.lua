@@ -200,7 +200,8 @@ t.before_suite(function()
         memtx_dir  = t.datadir,
         vinyl_dir  = t.datadir,
         -- vinyl_memory is changed to test test_mvcc_vinyl_tx_conflict.
-        vinyl_memory = 1024,
+        -- TODO: Commented out until tarantool/expirationd#105 is resolved.
+        -- vinyl_memory = 1024,
     }
 
     local tree_code = [[function(tuple)

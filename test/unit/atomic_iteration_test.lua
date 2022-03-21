@@ -134,6 +134,8 @@ end
 -- just check expirationd task continue work after conflicts
 function g.test_mvcc_vinyl_tx_conflict(cg)
     t.skip_if(cg.params.engine ~= 'vinyl', 'Unsupported engine')
+    -- TODO: Remove the line below when tarantool/expirationd#105 is resolved.
+    t.skip('Skipped until tarantool/expirationd#105 is resolved')
 
     for i = 1,10 do
         cg.space:insert({i, tostring(i), nil, nil, 0})

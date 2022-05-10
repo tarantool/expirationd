@@ -9,14 +9,6 @@ LUACOV_STATS := $(PROJECT_DIR)/luacov.stats.out
 SHELL := $(shell which bash) # Required for brace expansion used in a clean target.
 SEED ?= $(shell /bin/bash -c "echo $$RANDOM")
 
-CLEANUP_FILES  = tarantool.log
-CLEANUP_FILES += *.index
-CLEANUP_FILES += *.run
-CLEANUP_FILES += *.snap
-CLEANUP_FILES += *.vylog
-CLEANUP_FILES += *.xlog
-CLEANUP_FILES += 51{2,3,4,5,6,7,8,9}  #  Directories that vinyl creates.
-
 all: test
 
 # The template (ldoc.tpl) is written using tarantool specific
@@ -34,13 +26,6 @@ luacheck:
 .PHONY: test
 test:
 	luatest -v --coverage --shuffle all:${SEED}
-	rm -rf ${CLEANUP_FILES}
-	INDEX_TYPE='TREE' SPACE_TYPE='vinyl' ./test.lua
-	rm -rf ${CLEANUP_FILES}
-	INDEX_TYPE='HASH' ./test.lua
-	rm -rf ${CLEANUP_FILES}
-	INDEX_TYPE='TREE' ./test.lua
-	rm -rf ${CLEANUP_FILES}
 
 $(LUACOV_STATS): test
 
@@ -64,6 +49,3 @@ deps:
 deps-full: deps
 	tarantoolctl rocks install cartridge 2.7.4
 	tarantoolctl rocks install metrics 0.13.0
-
-clean:
-	rm -rf ${CLEANUP_FILES}

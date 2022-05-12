@@ -204,8 +204,63 @@ function g.test_tree_index_multikey(cg)
     task:kill()
 end
 
+function g.test_memtx_tree_functional_index_broken(cg)
+    t.skip_if(_TARANTOOL < "2" or not helpers.memtx_func_index_is_broken(),
+              "Unsupported Tarantool version")
+    t.skip_if(cg.params.index_type ~= 'TREE', 'Unsupported index type')
+    t.skip_if(cg.params.engine == 'vinyl', 'Unsupported engine')
+    local expected = "Functional indices are not supported for Tarantool < 2.8.4," ..
+                     " see options.force_allow_functional_index"
+
+    cg.space:insert({1, "1", nil, nil, nil, nil, nil, "12"})
+    cg.space:insert({2, "2", nil, nil, nil, nil, nil, "21"})
+
+    t.assert_error_msg_contains(expected, expirationd.start, "clean_all", cg.space.id,
+            helpers.is_expired_debug, {index = "functional_index"})
+    t.assert_items_equals(cg.space:select({}, {limit = 10}), {
+            {2, "2", nil, nil, nil, nil, nil, "21"},
+            {1, "1", nil, nil, nil, nil, nil, "12"}
+    })
+
+    cg.space:truncate()
+end
+
+function g.test_memtx_tree_functional_index_force_broken(cg)
+    t.skip_if(_TARANTOOL < "2" or not helpers.memtx_func_index_is_broken(),
+              "Unsupported Tarantool version")
+    t.skip_if(cg.params.index_type ~= 'TREE', 'Unsupported index type')
+    t.skip_if(cg.params.engine == 'vinyl', 'Unsupported engine')
+
+    helpers.iteration_result = {}
+
+    cg.space:insert({1, "1", nil, nil, nil, nil, nil, "12"})
+    cg.space:insert({2, "2", nil, nil, nil, nil, nil, "21"})
+
+	-- The problem occurs when we iterate through a functional index and delete
+	-- a current tuple. A possible solution is somehow to process tuples chunk
+	-- by chunk using select calls instead of iterating with index:pairs().
+    local select_with = function(task)
+        return pairs(task.index:select({}, {iterator = "ALL", limit = 100}))
+    end
+
+    local task = expirationd.start("clean_all", cg.space.id, helpers.is_expired_debug,
+            {index = "functional_index", force_allow_functional_index = true,
+             iterate_with = select_with})
+
+    -- wait for tuples expired
+    helpers.retrying({}, function()
+        -- sort by second character to eighth field
+        t.assert_equals(helpers.iteration_result, {
+            {2, "2", nil, nil, nil, nil, nil, "21"},
+            {1, "1", nil, nil, nil, nil, nil, "12"}
+        })
+    end)
+    task:kill()
+end
+
 function g.test_memtx_tree_functional_index(cg)
-    t.skip_if(_TARANTOOL < "2", "Unsupported Tarantool version")
+    t.skip_if(_TARANTOOL < "2" or helpers.memtx_func_index_is_broken(),
+              "Unsupported Tarantool version")
     t.skip_if(cg.params.index_type ~= 'TREE', 'Unsupported index type')
     t.skip_if(cg.params.engine == 'vinyl', 'Unsupported engine')
 

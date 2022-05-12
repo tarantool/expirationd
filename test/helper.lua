@@ -262,4 +262,12 @@ function helpers.vinyl_is_broken()
     return broken_v1_10 or broken_v2
 end
 
+function helpers.memtx_func_index_is_broken()
+    local major, minor, patch = helpers.tarantool_version()
+    if major > 2 or (major == 2 and minor == 8 and patch >= 4) or (major == 2 and minor >= 10) then
+        return false
+    end
+    return true
+end
+
 return helpers

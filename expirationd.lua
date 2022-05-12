@@ -450,7 +450,12 @@ end
 --     configured upstream, it's an option `box.cfg.replication_source`
 --     (`box.cfg.replication` for Tarantool 1.7.6+). The option `force` let a
 --     user control where to start task processing and where don't.
---
+-- @boolean[opt] options.force_allow_functional_index
+--     By default expirationd returns an error on iteration through a functional
+--     index for Tarantool < 2.8.4 because it may cause a crash, see
+--     https://github.com/tarantool/expirationd/issues/101
+--     You can skip the error using the option if you know what you are doing
+--     (implement your own `iterate_with` as example).
 -- @number[opt] options.full_scan_delay
 --     Sleep time between full scans (in seconds). It is allowed to pass an FFI
 --     number: `1LL`, `1ULL` etc. Default value is 1 sec.
@@ -603,6 +608,7 @@ local function expirationd_run_task(name, space_id, is_tuple_expired, options)
         args = '?',
         atomic_iteration = '?boolean',
         force = '?boolean',
+        force_allow_functional_index = '?boolean',
         full_scan_delay = '?number|cdata',
         full_scan_time = '?number|cdata',
         index = '?number|string',
@@ -649,6 +655,27 @@ local function expirationd_run_task(name, space_id, is_tuple_expired, options)
         expire_index = box.space[space_id].index[options.index]
         if expire_index.type ~= "TREE" and expire_index.type ~= "HASH" then
             error("Not supported index type, expected TREE or HASH")
+        end
+        local engine = box.space[space_id].engine
+        if engine == "memtx" and expire_index.func ~= nil then
+            local supported = false
+            local version = rawget(_G, "_TARANTOOL"):split('-', 1)[1]
+            local major_minor_patch = version:split('.', 2)
+
+            local major = tonumber(major_minor_patch[1])
+            local minor = tonumber(major_minor_patch[2])
+            local patch = tonumber(major_minor_patch[3])
+            -- https://github.com/tarantool/expirationd/issues/101
+            -- fixed since 2.8.4 and 2.10
+            if (major > 2) or (major == 2 and minor == 8 and patch >= 4)
+               or (major == 2 and minor >= 10) then
+                 supported = true
+            end
+            local force_allow = options.force_allow_functional_index or false
+            if not supported and not force_allow then
+                error("Functional indices are not supported for" ..
+                      " Tarantool < 2.8.4, see options.force_allow_functional_index")
+            end
         end
     end
     task.index = expire_index

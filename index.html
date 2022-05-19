@@ -414,8 +414,24 @@
      replica. Here the word 'replica' means an instance with at least one
      configured upstream, it's an option <code>box.cfg.replication_source</code>
      (<code>box.cfg.replication</code> for Tarantool 1.7.6+). The option <code>force</code> let a
-     user control where to start task processing and where don't.
-</p>
+     user control where to start task processing and where don't.</p>
+        </span>
+        </li>
+        <li><span class="parameter">force_allow_functional_index</span>
+            <span class="parameter-info">
+                (<span class="types"><span class="type">boolean</span></span>,
+                <span class="parameter-modifier">
+                <em>optional</em>)
+                </span>
+            </span>
+        <br>
+        <span class="parameter-description">
+        <p>
+     By default expirationd returns an error on iteration through a functional
+     index for Tarantool < 2.8.4 because it may cause a crash, see
+     https://github.com/tarantool/expirationd/issues/101
+     You can skip the error using the option if you know what you are doing
+     (implement your own <code>iterate_with</code> as example).</p>
         </span>
         </li>
         <li><span class="parameter">full_scan_delay</span>

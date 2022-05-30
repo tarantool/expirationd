@@ -148,7 +148,8 @@ local function worker_loop(task)
     fiber.name(string.format("worker of %q", task.name), { truncate = true })
 
     while true do
-        if (box.cfg.replication_source == nil and box.cfg.replication == nil) or task.force then
+        local replication = box.cfg.replication_source or box.cfg.replication
+        if replication == nil or #replication == 0 or task.force then
             task.on_full_scan_start(task)
             local state, err = pcall(task.do_worker_iteration, task)
             -- Following functions are on_full_scan*,

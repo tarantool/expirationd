@@ -415,6 +415,8 @@ end
 --
 -- 5. Repeat 1-4.
 --
+-- NOTE: By default expirationd does not start tasks on an instance with
+-- configured upstreams, see the `force` option.
 --
 -- @string name
 --     Task name.
@@ -445,12 +447,12 @@ end
 --     False (default) to process each tuple as a single transaction and true
 --     to process tuples from each batch in a single transaction.
 -- @boolean[opt] options.force
---     By default expirationd should process tasks only on the writeable
---     instance, it means that expirationd will not start task processing on a
---     replica. Here the word 'replica' means an instance with at least one
---     configured upstream, it's an option `box.cfg.replication_source`
---     (`box.cfg.replication` for Tarantool 1.7.6+). The option `force` let a
---     user control where to start task processing and where don't.
+--     By default expirationd does not start task processing on an instance with
+--     configured upstreams (see [`box.cfg.replication`][1]). Set the option
+--     to `true` to enable task processing on the instance.
+--
+--     [1]: https://www.tarantool.io/en/doc/latest/reference/configuration/#cfg-replication-replication.
+--
 -- @boolean[opt] options.force_allow_functional_index
 --     By default expirationd returns an error on iteration through a functional
 --     index for Tarantool < 2.8.4 because it may cause a crash, see

@@ -117,7 +117,7 @@ expirationd.start(job_name, space.id, is_expired, {
     end,
     -- this function must return an iterator over the tuples
     iterate_with = function( task )
-        return task.expire_index:pairs({ task.start_key() }, { iterator = task.iterator })
+        return task.index:pairs({ task.start_key() }, { iterator = task.iterator_type })
             :take_while( function( tuple )
                 return task:process_while()
             end )

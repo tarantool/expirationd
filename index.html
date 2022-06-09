@@ -313,8 +313,8 @@
 <p> 3. Repeat 1-2 until the whole space will be traversed.
 <p> 4. Sleep 1 second.
 <p> 5. Repeat 1-4.
-<p><table class="markdown_table">
-</table>
+<p> NOTE: By default expirationd does not start tasks on an instance with
+ configured upstreams, see the <code>force</code> option.
 </p>
 
 
@@ -409,12 +409,12 @@
         <br>
         <span class="parameter-description">
         <p>
-     By default expirationd should process tasks only on the writeable
-     instance, it means that expirationd will not start task processing on a
-     replica. Here the word 'replica' means an instance with at least one
-     configured upstream, it's an option <code>box.cfg.replication_source</code>
-     (<code>box.cfg.replication</code> for Tarantool 1.7.6+). The option <code>force</code> let a
-     user control where to start task processing and where don't.</p>
+     By default expirationd does not start task processing on an instance with
+     configured upstreams (see <a href="https://www.tarantool.io/en/doc/latest/reference/configuration/#cfg-replication-replication."><code>box.cfg.replication</code></a>). Set the option
+     to <code>true</code> to enable task processing on the instance.
+<p><table class="markdown_table">
+</table>
+</p>
         </span>
         </li>
         <li><span class="parameter">force_allow_functional_index</span>

@@ -3,6 +3,8 @@ local fio = require("fio")
 
 local helpers = require("luatest.helpers")
 
+helpers.project_root = fio.dirname(debug.sourcedir())
+
 local function create_space(space_name, engine)
     local space_format = {
         {
@@ -221,6 +223,16 @@ end)
 
 function helpers.is_expired_true()
     return true
+end
+
+function helpers.is_metrics_supported()
+    local is_package, metrics = pcall(require, "metrics")
+    if not is_package then
+        return false
+    end
+    -- metrics >= 0.11.0 is required
+    local counter = require('metrics.collectors.counter')
+    return metrics.unregister_callback and counter.remove
 end
 
 function helpers.iterate_with_func(task)

@@ -10,6 +10,8 @@ local checks = require("checks")
 local fun = require("fun")
 local log = require("log")
 local fiber = require("fiber")
+local is_metrics_package, metrics = pcall(require, "metrics")
+local is_hotreload_package, hotreload = pcall(require, "cartridge.hotreload")
 
 -- get fiber id function
 local function get_fiber_id(fiber)
@@ -20,7 +22,30 @@ local function get_fiber_id(fiber)
     return fid
 end
 
+local stash_names = {
+    cfg = '__expirationd_cfg',
+    metrics_stats = '__expirationd_metrics_stats',
+}
+
+if is_hotreload_package then
+    for _, name in pairs(stash_names) do
+        hotreload.whitelist_globals({ name })
+    end
+end
+
+-- get a stash instance, initialize if needed
+local function stash_get(name)
+    local instance = rawget(_G, name) or {}
+    rawset(_G, name, instance)
+    return instance
+end
+
 local task_list = {}
+local cfg = stash_get(stash_names.cfg)
+if cfg.metrics == nil then
+    cfg.metrics = true
+end
+local metrics_stats = stash_get(stash_names.metrics_stats)
 
 local constants = {
     -- default value of number of tuples that will be checked by one iteration
@@ -48,6 +73,92 @@ local constants = {
     -- default atomic_iteration is false, batch of items doesn't include in one transaction
     atomic_iteration = false,
 }
+
+local function is_metrics_v_0_11_installed()
+    if not is_metrics_package or metrics.unregister_callback == nil then
+        return false
+    end
+    local counter = require('metrics.collectors.counter')
+    return counter.remove and true or false
+end
+
+local function metrics_enable()
+    if not is_metrics_v_0_11_installed() then
+        error("metrics >= 0.11.0 is required", 3)
+    end
+
+    -- Workaround for a cartridge role reload:
+    --
+    -- Metrics package does not lose observation after a cartridge reload since
+    -- 0.13.0. expirationd does not yet support the cartridge reload (it
+    -- requires saving and restarting tasks at least). So, we are acting here
+    -- as if all expirationd tasks have been killed: reset all collectors and
+    -- the callback.
+    if metrics_stats.callback then
+        metrics.unregister_callback(metrics_stats.callback)
+    end
+    metrics_stats.callback = nil
+    if metrics_stats.collectors then
+        for _, c in pairs(metrics_stats.collectors) do
+            metrics.registry:unregister(c.collector)
+        end
+    end
+    metrics_stats.collectors = nil
+
+    local create_collector = function(name, description)
+        return {
+            collector = metrics.counter(name, description),
+            task_value = {},
+        }
+    end
+
+    metrics_stats.collectors = {
+        ["checked_count"] = create_collector(
+            "expirationd_checked_count",
+            "expirationd task's a number of checked tuples"
+        ),
+        ["expired_count"] = create_collector(
+            "expirationd_expired_count",
+            "expirationd task's a number of expired tuples"
+        ),
+        ["restarts"] = create_collector(
+            "expirationd_restarts",
+            "expirationd task's a number of restarts"
+        ),
+        ["working_time"] = create_collector(
+            "expirationd_working_time",
+            "expirationd task's operation time"
+        ),
+    }
+
+    local callback = function()
+        for task_name, task in pairs(task_list) do
+            local stats = task:statistics()
+            for k, v in pairs(stats) do
+                local prev_v = metrics_stats.collectors[k].task_value[task_name] or 0
+                local v_inc = v - prev_v
+                metrics_stats.collectors[k].collector:inc(v_inc, {name = task_name})
+                metrics_stats.collectors[k].task_value[task_name] = v
+            end
+        end
+    end
+    metrics.register_callback(callback)
+    metrics_stats.callback = callback
+end
+
+local function metrics_disable()
+    for _, c in pairs(metrics_stats.collectors) do
+        metrics.registry:unregister(c.collector)
+    end
+    metrics_stats.collectors = nil
+    metrics.unregister_callback(metrics_stats.callback)
+    metrics_stats.callback = nil
+end
+
+if cfg.metrics then
+    local enabled, _ = pcall(metrics_enable)
+    cfg.metrics = enabled
+end
 
 -- ========================================================================= --
 -- Task local functions
@@ -281,6 +392,12 @@ local Task_methods = {
     -- @function task.kill
     kill = function (self)
         self:stop()
+        if metrics_stats.collectors then
+            for _, c in pairs(metrics_stats.collectors) do
+                c.collector:remove({name = self.name})
+                c.task_value[self.name] = nil
+            end
+        end
         task_list[self.name] = nil
     end,
 
@@ -399,6 +516,65 @@ end
 --- Module functions
 --
 -- @section Functions
+
+--- Configure expirationd.
+--
+-- Since version 1.2.0.
+--
+-- How to set up a configuration option:
+--
+-- ```
+-- expirationd.cfg({metrics = true})
+-- ```
+--
+-- How to get an option value:
+--
+-- ```
+-- print(expirationd.cfg.metrics)
+-- true
+-- ```
+--
+-- @table options
+--
+-- @bool[opt] options.metrics
+--     Enable or disable stats collection by [metrics][1]. metrics >= 0.11.0
+--     is required. It is enabled by default.
+--
+--     If enabled it creates four counter collectors, see @{task.statistics}:
+--
+--     1. `expirationd_checked_count`
+--
+--     2. `expirationd_expired_count`
+--
+--     3. `expirationd_restarts`
+--
+--     4. `expirationd_working_time`
+--
+--     Labeled with `name = task_name`.
+--
+--     [1]: https://github.com/tarantool/metrics/
+--
+-- @return None
+--
+-- @function expirationd.cfg
+local function expirationd_cfg(self, options)
+    checks('table', {
+        metrics = '?boolean',
+    })
+
+    if options.metrics == nil then
+        return
+    end
+
+    if cfg.metrics ~= options.metrics then
+        if options.metrics == true then
+            metrics_enable()
+        else
+            metrics_disable()
+        end
+        rawset(cfg, 'metrics', options.metrics)
+    end
+end
 
 --- Run a scheduled task to check and process (expire) tuples in a given space.
 --
@@ -949,6 +1125,12 @@ local function show_task_list_obsolete(...)
 end
 
 return {
+    cfg     = setmetatable({}, {
+        __index = cfg,
+        __newindex = function() error("Use expirationd.cfg{} instead", 2) end,
+        __call = expirationd_cfg,
+        __serialize = function() return cfg end,
+    }),
     start   = expirationd_run_task,
     stats   = expirationd_task_stats,
     update  = expirationd_update,

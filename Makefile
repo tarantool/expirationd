@@ -60,5 +60,9 @@ deps:
 	tarantoolctl rocks install luacov-coveralls 0.2.3-1 --server=http://luarocks.org
 	tarantoolctl rocks make
 
+deps-full: deps
+	tarantoolctl rocks install cartridge 2.7.4
+	tarantoolctl rocks install metrics 0.13.0
+
 clean:
 	rm -rf ${CLEANUP_FILES}

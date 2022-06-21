@@ -451,7 +451,7 @@ end
 --     configured upstreams (see [`box.cfg.replication`][1]). Set the option
 --     to `true` to enable task processing on the instance.
 --
---     [1]: https://www.tarantool.io/en/doc/latest/reference/configuration/#cfg-replication-replication.
+--     [1]: https://www.tarantool.io/en/doc/latest/reference/configuration/#cfg-replication-replication
 --
 -- @boolean[opt] options.force_allow_functional_index
 --     By default expirationd returns an error on iteration through a functional

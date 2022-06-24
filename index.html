@@ -79,6 +79,10 @@
 <h2><a href="#Module_functions">Module functions </a></h2>
 <table class="function_list">
 	<tr>
+	<td class="name" nowrap><a href="#cfg">cfg (options)</a></td>
+	<td class="summary">Configure expirationd.</td>
+	</tr>
+	<tr>
 	<td class="name" nowrap><a href="#start">start (name, space_id, is_tuple_expired[, options])</a></td>
 	<td class="summary">Run a scheduled task to check and process (expire) tuples in a given space.</td>
 	</tr>
@@ -299,6 +303,74 @@
 
     <dl class="function Functions">
     <dt>
+    <a name="cfg"></a>
+    <strong>cfg (options)</strong>
+    </dt>
+    <dd>
+    <p>Configure expirationd. <table class="markdown_table">
+</table>
+<p>
+ Since version 1.2.0.
+<p> How to set up a configuration option:
+<p><pre> expirationd.cfg({metrics = true})</pre>
+<p>
+ How to get an option value:
+<p><pre> print(expirationd.cfg.metrics)
+ true</pre>
+</p>
+
+
+    <h3>Parameters:</h3>
+    <ul>
+        <li><span class="parameter">options</span>
+            <span class="parameter-info">
+                (<span class="types"><span class="type">table</span></span>)
+            </span>
+
+        <br>
+        <span class="parameter-description">
+        <p><table class="markdown_table">
+</table>
+</p>
+        </span>
+        <ul>
+        <li><span class="parameter">metrics</span>
+            <span class="parameter-info">
+                (<span class="types"><span class="type">bool</span></span>,
+                <span class="parameter-modifier">
+                <em>optional</em>)
+                </span>
+            </span>
+        <br>
+        <span class="parameter-description">
+        <p>
+     Enable or disable stats collection by <a href="https://github.com/tarantool/metrics/">metrics</a>. metrics >= 0.11.0
+     is required. It is enabled by default.
+<p>     If enabled it creates four counter collectors, see <a href="index.html#task.statistics">task.statistics</a>:
+<p>     1. <code>expirationd_checked_count</code>
+<p>     2. <code>expirationd_expired_count</code>
+<p>     3. <code>expirationd_restarts</code>
+<p>     4. <code>expirationd_working_time</code>
+<p>     Labeled with <code>name = task_name</code>.
+<p><table class="markdown_table">
+</table>
+</p>
+        </span>
+        </li>
+        </li></ul>
+    </ul>
+
+    <h3>Returns:</h3>
+    <ol>
+
+        None
+    </ol>
+
+
+
+
+</dd>
+    <dt>
     <a name="start"></a>
     <strong>start (name, space_id, is_tuple_expired[, options])</strong>
     </dt>
@@ -410,7 +482,7 @@
         <span class="parameter-description">
         <p>
      By default expirationd does not start task processing on an instance with
-     configured upstreams (see <a href="https://www.tarantool.io/en/doc/latest/reference/configuration/#cfg-replication-replication."><code>box.cfg.replication</code></a>). Set the option
+     configured upstreams (see <a href="https://www.tarantool.io/en/doc/latest/reference/configuration/#cfg-replication-replication"><code>box.cfg.replication</code></a>). Set the option
      to <code>true</code> to enable task processing on the instance.
 <p><table class="markdown_table">
 </table>

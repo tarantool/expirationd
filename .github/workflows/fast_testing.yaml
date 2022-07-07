@@ -44,10 +44,10 @@ jobs:
           tarantool-version: ${{ matrix.tarantool }}
 
       - name: Clone the module
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Cache rocks
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         id: cache-rocks
         with:
           path: .rocks/

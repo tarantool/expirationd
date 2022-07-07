@@ -25,6 +25,8 @@ jobs:
           - '2.7'
           - '2.8'
           - '2.10'
+        cartridge-version:
+          - '2.7.4'
         metrics-version:
           - ''
           - '0.10.0'
@@ -33,6 +35,7 @@ jobs:
         coveralls: [false]
         include:
           - tarantool: '2.10'
+            cartridge-version: '2.7.4'
             metrics-version: '0.13.0'
             coveralls: true
 
@@ -51,7 +54,9 @@ jobs:
         id: cache-rocks
         with:
           path: .rocks/
-          key: cache-rocks-${{ matrix.tarantool }}-07
+          key: "cache-rocks-${{ matrix.tarantool }}-\
+            ${{ matrix.cartridge-version }}-\
+            ${{ matrix.metrics-version }}"
 
       - name: Install requirements
         run: make deps
@@ -60,7 +65,7 @@ jobs:
       - name: Install cartridge and metrics
         if: matrix.metrics-version != ''
         run: |
-          tarantoolctl rocks install cartridge 2.7.4
+          tarantoolctl rocks install cartridge ${{ matrix.cartridge-version }}
           tarantoolctl rocks install metrics ${{ matrix.metrics-version }}
 
       - run: echo $PWD/.rocks/bin >> $GITHUB_PATH

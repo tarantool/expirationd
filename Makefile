@@ -7,6 +7,7 @@ LUACOV_REPORT := $(PROJECT_DIR)/luacov.report.out
 LUACOV_STATS := $(PROJECT_DIR)/luacov.stats.out
 
 SHELL := $(shell which bash) # Required for brace expansion used in a clean target.
+SEED ?= $(shell /bin/bash -c "echo $$RANDOM")
 
 CLEANUP_FILES  = tarantool.log
 CLEANUP_FILES += *.index
@@ -32,7 +33,7 @@ luacheck:
 
 .PHONY: test
 test:
-	luatest -v --coverage
+	luatest -v --coverage --shuffle all:${SEED}
 	rm -rf ${CLEANUP_FILES}
 	INDEX_TYPE='TREE' SPACE_TYPE='vinyl' ./test.lua
 	rm -rf ${CLEANUP_FILES}

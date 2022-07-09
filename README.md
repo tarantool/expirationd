@@ -134,3 +134,14 @@ expirationd.start(job_name, space.id, is_expired, {
 $ make deps-full
 $ make test
 ```
+
+Regression tests running in continuous integration that uses luatest are
+executed in shuffle mode. It means that every time order of tests is
+pseudorandom with predefined seed. If tests in CI are failed it is better to
+reproduce these failures with the same seed:
+
+```sh
+$ make SEED=1334 test
+luatest -v --coverage --shuffle all:1334
+...
+```

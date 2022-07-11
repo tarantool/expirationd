@@ -134,39 +134,46 @@ end
 -- just check expirationd task continue work after conflicts
 function g.test_mvcc_vinyl_tx_conflict(cg)
     t.skip_if(cg.params.engine ~= 'vinyl', 'Unsupported engine')
-    -- TODO: Remove the line below when tarantool/expirationd#105 is resolved.
-    t.skip('Skipped until tarantool/expirationd#105 is resolved')
+    local tuples_cnt = 10
 
-    for i = 1,10 do
+    for i = 1,tuples_cnt do
         cg.space:insert({i, tostring(i), nil, nil, 0})
     end
 
     local updaters = {}
-    for i = 1,10 do
-        local updater = fiber.create(function()
+    for i = 1,tuples_cnt do
+        local updater = fiber.new(function()
             fiber.name(string.format("updater of %d", i), { truncate = true })
-            while true do
-                cg.space:update({i}, { {"+", 5, 1} })
-                fiber.yield()
-            end
+            cg.space:update({i}, { {"+", 5, 1} })
         end)
+        updater:set_joinable(true)
         table.insert(updaters, updater)
     end
 
-    local task = expirationd.start("clean_all", cg.space.id, helpers.is_expired_debug,
-            {atomic_iteration = true})
+    local is_expired = function(args, tuple)
+        -- The idea is to switch explicity to an updater fiber in the middle of
+        -- an expirationd's transaction:
+        -- Delete from expirationd + update from an updater == conflict at the
+        -- expirationd's transaction.
+        fiber.yield()
+        return helpers.is_expired_debug(args, tuple)
+    end
 
-    -- wait for tuples expired
-    fiber.sleep(3)
+    helpers.iteration_result = {}
+    local task = expirationd.start("clean_all", cg.space.id, is_expired,
+                                   {atomic_iteration = true})
+    -- ensure that expirationd task does not delete a tuple yet
+    t.assert_equals(helpers.iteration_result, {})
 
-    for i = 1,10 do
-        updaters[i]:cancel()
+    for _, updater in pairs(updaters) do
+        updater:join()
     end
 
     helpers.retrying({}, function()
         t.assert_equals(cg.space:select(), {})
     end)
-    t.assert(box.stat.vinyl().tx.conflict > 0)
+    t.assert_gt(box.stat.vinyl().tx.conflict, 0)
+    t.assert_gt(#helpers.iteration_result, tuples_cnt)
     t.assert_equals(box.stat.vinyl().tx.conflict, box.stat.vinyl().tx.rollback)
     t.assert_equals(box.stat.vinyl().tx.transactions, 0)
     task:kill()

@@ -37,4 +37,5 @@ function g.test_cancel_on_pcall(cg)
     helpers.retrying({timeout = 5}, function()
         t.assert_equals(f:status(), "dead")
     end)
+    task:kill()
 end

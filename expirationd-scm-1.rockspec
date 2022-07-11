@@ -8,7 +8,7 @@ description = {
     summary = "Expiration daemon for Tarantool",
     homepage = "https://github.com/tarantool/expirationd",
     license = "BSD2",
-    maintainer = "Sergey Bronnikov <sergeyb@tarantool.org>"
+    maintainer = "Oleg Jukovec <oleg.jukovec@tarantool.org>"
 }
 dependencies = {
     "lua >= 5.1", -- actually tarantool > 1.6

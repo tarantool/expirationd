@@ -11,12 +11,17 @@ g.before_each(function()
     t.skip_if(not helpers.is_metrics_supported(),
               "metrics >= 0.11.0 is not installed")
     g.space = helpers.create_space_with_tree_index('memtx')
+    -- kill live tasks (it can still live after failed tests)
+    for _, t in ipairs(expirationd.tasks()) do
+        expirationd.kill(t)
+    end
+    -- disable and clean metrics by default
+    expirationd.cfg({metrics = false})
+    require('metrics').clear()
 end)
 
 local task = nil
 g.after_each(function(g)
-    expirationd.cfg({metrics = false}) -- reset metrics stats
-    require('metrics').clear()
     expirationd.cfg(g.default_cfg)
     g.space:drop()
     if task ~= nil then

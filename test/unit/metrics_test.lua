@@ -3,6 +3,10 @@ local t = require("luatest")
 local helpers = require("test.helper")
 local g = t.group('expirationd_metrics')
 
+g.before_all(function()
+    g.default_cfg = { metrics = expirationd.cfg.metrics }
+end)
+
 g.before_each(function()
     t.skip_if(not helpers.is_metrics_supported(),
               "metrics >= 0.11.0 is not installed")
@@ -11,8 +15,9 @@ end)
 
 local task = nil
 g.after_each(function(g)
-    expirationd.cfg({metrics = false})
+    expirationd.cfg({metrics = false}) -- reset metrics stats
     require('metrics').clear()
+    expirationd.cfg(g.default_cfg)
     g.space:drop()
     if task ~= nil then
         task:kill()

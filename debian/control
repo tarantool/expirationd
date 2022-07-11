@@ -1,7 +1,7 @@
 Source: tarantool-expirationd
 Priority: optional
 Section: database
-Maintainer: Sergey Bronnikov <sergeyb@tarantool.org>
+Maintainer: Oleg Jukovec <oleg.jukovec@tarantool.org>
 Build-Depends: debhelper (>= 9),
                tarantool (>= 1.6.8.0),
 # For /usr/bin/prove

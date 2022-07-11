@@ -6,6 +6,14 @@ local g = t.group('expirationd_cfg')
 local metrics_required_msg = "metrics >= 0.11.0 is not installed"
 local metrics_not_required_msg = "metrics >= 0.11.0 is installed"
 
+g.before_all(function()
+    g.default_cfg = { metrics = expirationd.cfg.metrics }
+end)
+
+g.after_each(function()
+    expirationd.cfg(g.default_cfg)
+end)
+
 function g.test_cfg_default_if_installed()
     t.skip_if(not helpers.is_metrics_supported(), metrics_required_msg)
     t.assert_equals(expirationd.cfg.metrics, true)

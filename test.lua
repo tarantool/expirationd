@@ -146,10 +146,12 @@ local function add_entry(space_id, uid, email, expiration_time)
 end
 
 -- put test tuples
-local function put_test_tuples(space_id, total)
+local function put_test_tuples(space_id, total, inc_time)
     local time = math.floor(fiber.time())
     for i = 0, total do
-        add_entry(space_id, i, get_email(i), time + i)
+        -- a half with start time, a halt with start time + inc_time
+        local create_time = time + (i < total / 2 and 0 or inc_time)
+        add_entry(space_id, i, get_email(i), create_time)
     end
 
     -- tuple w/o expiration date
@@ -298,7 +300,12 @@ test:test('simple expires test',  function(test)
     -- put test tuples
     log.info("-------------- put ------------")
     log.info("put to space " .. prefix_space_id(space_id))
-    put_test_tuples(space_id, 10)
+
+    -- puts:
+    -- 5 tuples with the current time as an expiration (should be deleted)
+    -- 5 tuples with the current time + 120s as an expiration
+    -- 2 tuples with an invalid time (should be deleted)
+    put_test_tuples(space_id, 10, 120)
 
     -- print before
     log.info("------------- print -----------")
@@ -320,14 +327,10 @@ test:test('simple expires test',  function(test)
             },
         }
     )
-
-    -- wait expiration
     local start_time = fiber.time()
-    log.info("------------- wait ------------")
-    log.info("before time = " .. os.date('%X', start_time))
-    fiber.sleep(5)
-    local end_time = fiber.time()
-    log.info("after time = " .. os.date('%X', end_time))
+
+    -- sure that "test" task will be executed
+    fiber.yield()
 
     -- print after
     log.info("------------- print -----------")

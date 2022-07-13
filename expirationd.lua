@@ -259,9 +259,31 @@ local function worker_loop(task)
     -- detach worker from the guardian and attach it to sched fiber
     fiber.name(string.format("worker of %q", task.name), { truncate = true })
 
+    -- https://www.tarantool.io/en/doc/latest/reference/configuration/#confval-read_only
+    local space = box.space[task.space_id]
+    local is_ro_writable = space.temporary or space.is_local
+    local is_skipped = false
     while true do
-        local replication = box.cfg.replication_source or box.cfg.replication
-        if replication == nil or #replication == 0 or task.force then
+        local box_info = box.info
+        if not box_info.ro or is_ro_writable or task.force then
+            if is_skipped then
+                -- Wait for maximum upstream lag * 2 if we became a master.
+                -- It helps to don't hit a conflict due to parallel processing
+                -- of remaining transactions from the old master and from the
+                -- new master.
+                local max_lag = 0
+                for i = 1, table.maxn(box_info.replication) do
+                    local r = box_info.replication[i]
+                    if r and r.upstream and max_lag < r.upstream.lag then
+                        max_lag = r.upstream.lag
+                    end
+                end
+                if max_lag > 0 then
+                    fiber.sleep(max_lag * 2)
+                end
+            end
+            is_skipped = false
+
             task.on_full_scan_start(task)
             local state, err = pcall(task.do_worker_iteration, task)
             -- Following functions are on_full_scan*,
@@ -281,6 +303,8 @@ local function worker_loop(task)
                 box.rollback()
                 error(err)
             end
+        else
+            is_skipped = true
         end
 
         -- If we do not check the fiber for cancellation,
@@ -668,8 +692,8 @@ end
 --
 -- 5. Repeat 1-4.
 --
--- NOTE: By default expirationd does not start tasks on an instance with
--- configured upstreams, see the `force` option.
+-- NOTE: By default expirationd does not start tasks on an read-only instance
+-- for non-local persistent spaces, see the `force` option.
 --
 -- NOTE: By default expirationd continues processing from a last processed
 -- tuple if a task with same name has not been killed properly with
@@ -706,11 +730,13 @@ end
 --     False (default) to process each tuple as a single transaction and true
 --     to process tuples from each batch in a single transaction.
 -- @boolean[opt] options.force
---     By default expirationd does not start task processing on an instance with
---     configured upstreams (see [`box.cfg.replication`][1]). Set the option
---     to `true` to enable task processing on the instance.
+--     By default expirationd processes tasks for all types of spaces only on
+--     an writable instance. It does not process tasks on an read-only instance
+--     for [non-local persistent spaces][1]. It means that expirationd will not
+--     start the task processing on a replica for regular spaces. Set the
+--     option to `true` to force enable the task processing anyway.
 --
---     [1]: https://www.tarantool.io/en/doc/latest/reference/configuration/#cfg-replication-replication
+--     [1]: https://www.tarantool.io/en/doc/latest/reference/configuration/#confval-read_only
 --
 -- @boolean[opt] options.force_allow_functional_index
 --     By default expirationd returns an error on iteration through a functional

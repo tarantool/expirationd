@@ -7,9 +7,9 @@ License: BSD
 URL: https://github.com/tarantool/tarantool-expirationd
 Source0: https://github.com/tarantool/%{name}/archive/%{version}/%{name}-%{version}.tar.gz
 BuildArch: noarch
-BuildRequires: tarantool >= 1.6.8.0
+BuildRequires: tarantool >= 1.7.4.0
 BuildRequires: /usr/bin/prove
-Requires: tarantool >= 1.6.8.0
+Requires: tarantool >= 1.7.4.0
 Requires: tarantool-checks >= 2.1
 %description
 This package can turn Tarantool into a persistent memcache replacement,

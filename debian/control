@@ -3,7 +3,7 @@ Priority: optional
 Section: database
 Maintainer: Oleg Jukovec <oleg.jukovec@tarantool.org>
 Build-Depends: debhelper (>= 9),
-               tarantool (>= 1.6.8.0),
+               tarantool (>= 1.7.4.0),
 # For /usr/bin/prove
                perl (>= 5.10.0)
 Standards-Version: 3.9.6
@@ -13,7 +13,7 @@ Vcs-Browser: https://github.com/tarantool/expirationd
 
 Package: tarantool-expirationd
 Architecture: all
-Depends: tarantool (>= 1.6.8.0), tarantool-checks (>= 2.1), ${misc:Depends}
+Depends: tarantool (>= 1.7.4.0), tarantool-checks (>= 2.1), ${misc:Depends}
 Description: Expiration daemon for Tarantool
  This package can turn Tarantool into a persistent memcache replacement,
  but is powerful enough so that your own expiration strategy can be defined.

@@ -55,13 +55,13 @@ You can:
 
 See API documentation in https://tarantool.github.io/expirationd/
 
-Note about using expirationd with replication: by default expirationd should
-process tasks only on the writeable instance, it means that expirationd *will
-not* start task processing on a replica. Here the word 'replica' means an
-instance with at least one configured upstream, it's an option
-`box.cfg.replication_source`. One can force running task on replica with option
-`force` in `start()` module function. The option force let a user control where
-to start task processing and where don't.
+Note about using expirationd with replication: by default expirationd processes
+tasks for all types of spaces only on the writable instance. It does not
+process tasks on read-only instance for [non-local persistent spaces](https://www.tarantool.io/en/doc/latest/reference/configuration/#confval-read_only).
+It means that expirationd *will not* start task processing on a replica for
+regular spaces. One can force running task on replica with option `force` in
+`start()` module function. The option force let a user control where to start
+task processing and where don't.
 
 ### Examples
 

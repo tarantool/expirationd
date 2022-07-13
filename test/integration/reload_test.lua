@@ -9,7 +9,7 @@ g.before_all(function(cg)
         local entrypoint_path = fio.pathjoin(helpers.project_root,
                                              'test',
                                              'entrypoint',
-                                             'srv_reload.lua')
+                                             'srv_base.lua')
         cg.cluster = cartridge_helpers.Cluster:new({
             datadir = fio.tempdir(),
             server_command = entrypoint_path,

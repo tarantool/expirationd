@@ -18,6 +18,7 @@ build = {
     type = "builtin",
     modules = {
         ["expirationd"] = "expirationd.lua",
+        ["cartridge.roles.expirationd"] = "cartridge/roles/expirationd.lua",
     }
 }
 -- vim: syntax=lua

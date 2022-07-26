@@ -32,32 +32,25 @@ function g.test_passing(cg)
 
     local task = expirationd.start("clean_all", cg.space.id, helpers.is_expired_true)
     -- if we don't specify index, program should use primary index
-    t.assert_equals(task.index, cg.space.index[0])
+    t.assert_equals(task.index, cg.space.index[0].id)
     task:kill()
 
     -- index by name
     task = expirationd.start("clean_all", cg.space.id, helpers.is_expired_true,
             {index = "index_for_first_name"})
-    t.assert_equals(task.index, cg.space.index[1])
+    t.assert_equals(task.index, cg.space.index[1].name)
     task:kill()
 
     -- index by id
     task = expirationd.start("clean_all", cg.space.id, helpers.is_expired_true,
             {index = 1})
-    t.assert_equals(task.index, cg.space.index[1])
+    t.assert_equals(task.index, cg.space.index[1].id)
     task:kill()
 end
 
 function g.test_tree_index_errors(cg)
     t.skip_if(cg.params.index_type ~= 'TREE', 'Unsupported index type')
 
-    -- errors
-    t.assert_error_msg_content_equals("Index with name not_exists_index does not exist",
-            expirationd.start, "clean_all", cg.space.id, helpers.is_expired_true,
-            {index = "not_exists_index"})
-    t.assert_error_msg_content_equals("Index with id 10 does not exist",
-            expirationd.start, "clean_all", cg.space.id, helpers.is_expired_true,
-            {index = 10})
     t.assert_error_msg_contains("bad argument options.index to nil (?number|string expected, got table)",
             expirationd.start, "clean_all", cg.space.id, helpers.is_expired_true,
             {index = { 10 }})
@@ -239,8 +232,9 @@ function g.test_memtx_tree_functional_index_force_broken(cg)
 	-- The problem occurs when we iterate through a functional index and delete
 	-- a current tuple. A possible solution is somehow to process tuples chunk
 	-- by chunk using select calls instead of iterating with index:pairs().
-    local select_with = function(task)
-        return pairs(task.index:select({}, {iterator = "ALL", limit = 100}))
+    local select_with = function()
+        local index = cg.space.index["functional_index"]
+        return pairs(index:select({}, {iterator = "ALL", limit = 100}))
     end
 
     local task = expirationd.start("clean_all", cg.space.id, helpers.is_expired_debug,

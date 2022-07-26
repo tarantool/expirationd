@@ -168,12 +168,73 @@ end
 -- ------------------------------------------------------------------------- --
 -- Task fibers
 -- ------------------------------------------------------------------------- --
+local function check_space_and_index_exist(task)
+    local space = box.space[task.space_id]
+    if space == nil then
+        local prefix = "Space with " ..
+                       (type(task.space_id) == "string" and "name " or "id ")
+        return false, prefix .. task.space_id .. " does not exist"
+    end
+
+    local index = space.index[task.index]
+    if index == nil then
+        local prefix = "Index with " ..
+                       (type(task.index) == "string" and "name " or "id ")
+        return false, prefix .. task.index .. " does not exist"
+    end
+
+    return true
+end
+
+local function check_space_and_index(task)
+    local ok, err = check_space_and_index_exist(task)
+    if not ok then
+        return false, err
+    end
+
+    local space = box.space[task.space_id]
+    local index = space.index[task.index]
+    if index.type ~= "TREE" and index.type ~= "HASH" then
+        return false, "Not supported index type, expected TREE or HASH"
+    end
+
+    if space.engine == "memtx" and index.func ~= nil then
+        local supported = false
+        local version = rawget(_G, "_TARANTOOL"):split('-', 1)[1]
+        local major_minor_patch = version:split('.', 2)
+
+        local major = tonumber(major_minor_patch[1])
+        local minor = tonumber(major_minor_patch[2])
+        local patch = tonumber(major_minor_patch[3])
+        -- https://github.com/tarantool/expirationd/issues/101
+        -- fixed since 2.8.4 and 2.10
+        if (major > 2) or (major == 2 and minor == 8 and patch >= 4)
+          or (major == 2 and minor >= 10) then
+            supported = true
+        end
+        local force_allow = task.force_allow_functional_index or false
+        if not supported and not force_allow then
+            return false, "Functional indices are not supported for" ..
+                          " Tarantool < 2.8.4, see" ..
+                          " options.force_allow_functional_index"
+        end
+    end
+
+    local ok, err = pcall(function()
+        index:pairs(task.start_key(), {iterator = task.iterator_type})
+    end)
+    if not ok then
+        return false, err
+    end
+
+    return true, nil
+end
 
 -- get all fields in key(composite possible) from a tuple
-local function construct_key(space_id, index_id, tuple)
+local function construct_key(space_id, index, tuple)
     return fun.map(
         function(x) return tuple[x.fieldno] end,
-        box.space[space_id].index[index_id].parts
+        box.space[space_id].index[index].parts
     ):totable()
 end
 
@@ -195,7 +256,8 @@ end
 
 local function suspend(task)
     -- Return the number of tuples in the space
-    local space_len = task.index:len()
+    local index = box.space[task.space_id].index[task.index]
+    local space_len = index:len()
     if space_len > 0 then
         suspend_basic(task, space_len)
     end
@@ -323,8 +385,20 @@ local function guardian_loop(task)
     fiber.name(string.format("guardian of %q", task.name), { truncate = true })
 
     while true do
+        if check_space_and_index_exist(task) then
+            break
+        end
+        fiber.sleep(constants.check_interval)
+    end
+
+    while true do
         -- if fiber doesn't exist
         if get_fiber_id(task.worker_fiber) == 0 then
+            local ok, err = check_space_and_index(task)
+            if not ok then
+                log.info("expiration: stop task %q, reason: %s", task.name, err)
+                return
+            end
             -- create worker fiber
             task.worker_fiber = fiber.create(worker_loop, task)
 
@@ -525,19 +599,21 @@ local function default_tuple_drop(space_id, args, tuple)
 end
 
 local function create_continue_key(tuple, old_parts, task)
-    if tuple == nil or #old_parts ~= #task.index.parts then
+    local index = box.space[task.space_id].index[task.index]
+
+    if tuple == nil or #old_parts ~= #index.parts then
         return nil
     end
 
     for i, part in ipairs(old_parts) do
         for k, v in pairs(part) do
-            if task.index.parts[i][k] == nil or task.index.parts[i][k] ~= v then
+            if index.parts[i][k] == nil or index.parts[i][k] ~= v then
                 return nil
             end
         end
     end
 
-    return construct_key(task.space_id, task.index.id, tuple)
+    return construct_key(task.space_id, task.index, tuple)
 end
 
 local continue_iterators_map = {}
@@ -561,15 +637,16 @@ local function create_continue_state(task)
     local key = nil
     local it = nil
     local c = task_continue[task.name]
-    if c and c.space_id == task.space_id and c.index_id == task.index.id and c.it == task.iterator_type then
+    if c and c.space_id == task.space_id and c.index == task.index and c.it == task.iterator_type then
         key = create_continue_key(c.tuple, c.index_parts, task)
         it = continue_iterators_map[task.iterator_type]
     end
 
+    local index = box.space[task.space_id].index[task.index]
     task_continue[task.name] = {
         space_id = task.space_id,
-        index_id = task.index.id,
-        index_parts = table.deepcopy(task.index.parts),
+        index = task.index,
+        index_parts = table.deepcopy(index.parts),
         it = task.iterator_type,
         tuple = nil,
     }
@@ -583,8 +660,9 @@ end
 -- default iterate_with function
 local function default_iterate_with(task)
     local continue_key, continue_it = create_continue_state(task)
-    local iter, param, state = task.index:pairs(continue_key or task.start_key(),
-                                                { iterator = continue_it or task.iterator_type })
+    local index = box.space[task.space_id].index[task.index]
+    local iter, param, state = index:pairs(continue_key or task.start_key(),
+                                           { iterator = continue_it or task.iterator_type })
        :take_while(
             function()
                 return task:process_while()
@@ -927,52 +1005,16 @@ local function expirationd_run_task(name, space_id, is_tuple_expired, options)
         prev:kill(name)
         task_continue[name] = tmp
     end
-    local task = create_task(name)
-    task.space_id = space_id
-    task.is_tuple_expired = is_tuple_expired
 
     options = options or {}
+
+    local task = create_task(name)
+    task.space_id = space_id
+    task.index = options.index or 0
+    task.force_allow_functional_index = options.force_allow_functional_index
+
+    task.is_tuple_expired = is_tuple_expired
     task.process_expired_tuple = options.process_expired_tuple or default_tuple_drop
-
-    -- validate index
-    local expire_index = box.space[space_id].index[0]
-    if options.index then
-        if box.space[space_id].index[options.index] == nil then
-            if type(options.index) == "string" then
-                error("Index with name " .. options.index .. " does not exist")
-            elseif type(options.index) == "number" then
-                error("Index with id " .. options.index .. " does not exist")
-            else
-                error("Invalid type of index, expected string or number")
-            end
-        end
-        expire_index = box.space[space_id].index[options.index]
-        if expire_index.type ~= "TREE" and expire_index.type ~= "HASH" then
-            error("Not supported index type, expected TREE or HASH")
-        end
-        local engine = box.space[space_id].engine
-        if engine == "memtx" and expire_index.func ~= nil then
-            local supported = false
-            local version = rawget(_G, "_TARANTOOL"):split('-', 1)[1]
-            local major_minor_patch = version:split('.', 2)
-
-            local major = tonumber(major_minor_patch[1])
-            local minor = tonumber(major_minor_patch[2])
-            local patch = tonumber(major_minor_patch[3])
-            -- https://github.com/tarantool/expirationd/issues/101
-            -- fixed since 2.8.4 and 2.10
-            if (major > 2) or (major == 2 and minor == 8 and patch >= 4)
-               or (major == 2 and minor >= 10) then
-                 supported = true
-            end
-            local force_allow = options.force_allow_functional_index or false
-            if not supported and not force_allow then
-                error("Functional indices are not supported for" ..
-                      " Tarantool < 2.8.4, see options.force_allow_functional_index")
-            end
-        end
-    end
-    task.index = expire_index
 
     -- check iterator_type
     if options.iterator_type ~= nil then
@@ -988,8 +1030,15 @@ local function expirationd_run_task(name, space_id, is_tuple_expired, options)
         end
     end
 
-    -- check valid of iterator_type and start key
-    task.index:pairs( task.start_key(), { iterator = task.iterator_type })
+    local ok, err = check_space_and_index_exist(task)
+    if ok then
+        local ok, err = check_space_and_index(task)
+        if not ok then
+            error(err)
+        end
+    else
+        log.warn("expiration: postpone a task " .. name .. ", reason: " .. err)
+    end
 
     -- check process_while
     if options.process_while ~= nil then

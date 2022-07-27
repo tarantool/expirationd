@@ -128,8 +128,9 @@
     <strong>task.start (self)</strong>
     </dt>
     <dd>
-    <p>Start a task. <table class="markdown_table">
-</table>
+    <p>Start a task.  It continues processing from a last tuple if the task
+  was previously stopped by <a href="index.html#task.stop">task.stop</a> and the task has default
+  <code>start_key</code> and <code>iterate_with</code> functions.
 </p>
 
 
@@ -387,6 +388,11 @@
 <p> 5. Repeat 1-4.
 <p> NOTE: By default expirationd does not start tasks on an instance with
  configured upstreams, see the <code>force</code> option.
+<p> NOTE: By default expirationd continues processing from a last processed
+ tuple if a task with same name has not been killed properly with
+ <a href="index.html#task.kill">task.kill</a> or <a href="index.html#kill">kill</a>. This behavior only works with default functions
+ <code>start_key</code> and <code>iterate_with</code>. You need to set at least one function if
+ another behavior is needed, see <code>start_key</code> and <code>iterate_with</code> options.
 </p>
 
 
@@ -568,13 +574,16 @@
      instance object. Default function returns iterator returned by
      <a href="https://www.tarantool.io/en/doc/latest/reference/reference_lua/box_index/pairs/.">index_object:pairs()</a>, where <code>index</code> is a primary index or index
      that specified with argument <code>options.index</code>:
-<p><pre>  index:pairs(option.start_key(), {
-     iterator = option.iterator_type
-  }):take_while(
-         function()
-             return option.process_while()
-         end
-    )</pre>
+<p> Example of function:
+<p><pre>  local function iterate_with()
+      index:pairs(option.start_key(), {
+         iterator = option.iterator_type
+      }):take_while(
+             function()
+                 return option.process_while()
+             end
+        )
+  end</pre>
 <p><table class="markdown_table">
 </table>
 </p>

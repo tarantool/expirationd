@@ -10,6 +10,7 @@ BuildArch: noarch
 BuildRequires: tarantool >= 1.6.8.0
 BuildRequires: /usr/bin/prove
 Requires: tarantool >= 1.6.8.0
+Requires: tarantool-checks >= 2.1
 %description
 This package can turn Tarantool into a persistent memcache replacement,
 but is powerful enough so that your own expiration strategy can be defined.

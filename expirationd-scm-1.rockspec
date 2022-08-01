@@ -12,7 +12,7 @@ description = {
 }
 dependencies = {
     "lua >= 5.1", -- actually tarantool > 1.6
-    "checks == 3.1.0-1",
+    "checks >= 2.1",
 }
 build = {
     type = "builtin",

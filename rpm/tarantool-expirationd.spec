@@ -24,9 +24,6 @@ some other space.
 %prep
 %setup -q -n %{name}-%{version}
 
-%check
-make test
-
 %install
 install -d %{buildroot}%{_datarootdir}/tarantool/
 install -m 0644 expirationd.lua %{buildroot}%{_datarootdir}/tarantool/

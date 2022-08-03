@@ -386,8 +386,8 @@
 <p> 3. Repeat 1-2 until the whole space will be traversed.
 <p> 4. Sleep 1 second.
 <p> 5. Repeat 1-4.
-<p> NOTE: By default expirationd does not start tasks on an instance with
- configured upstreams, see the <code>force</code> option.
+<p> NOTE: By default expirationd does not start tasks on an read-only instance
+ for non-local persistent spaces, see the <code>force</code> option.
 <p> NOTE: By default expirationd continues processing from a last processed
  tuple if a task with same name has not been killed properly with
  <a href="index.html#task.kill">task.kill</a> or <a href="index.html#kill">kill</a>. This behavior only works with default functions
@@ -487,9 +487,11 @@
         <br>
         <span class="parameter-description">
         <p>
-     By default expirationd does not start task processing on an instance with
-     configured upstreams (see <a href="https://www.tarantool.io/en/doc/latest/reference/configuration/#cfg-replication-replication"><code>box.cfg.replication</code></a>). Set the option
-     to <code>true</code> to enable task processing on the instance.
+     By default expirationd processes tasks for all types of spaces only on
+     an writable instance. It does not process tasks on an read-only instance
+     for <a href="https://www.tarantool.io/en/doc/latest/reference/configuration/#confval-read_only">non-local persistent spaces</a>. It means that expirationd will not
+     start the task processing on a replica for regular spaces. Set the
+     option to <code>true</code> to force enable the task processing anyway.
 <p><table class="markdown_table">
 </table>
 </p>

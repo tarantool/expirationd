@@ -13,6 +13,40 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 
+## 1.3.0 - 2022-08-11
+
+This release adds a Tarantool Cartridge role for expirationd package and
+improves the default behavior.
+
+### Added
+
+- Continue a task from a last tuple (#54).
+- Process a task on a writable space by default (#42).
+- Wait until a space or an index is created (#68, #116).
+- Tarantool Cartridge role (#107).
+- Shuffle tests (#118).
+- GitHub Actions workflow with debug Tarantool build (#102).
+- GitHub Actions workflow for deploying module packages to S3 based
+  repositories (#43).
+
+### Changed
+
+- Decrease tarantool-checks dependency from 3.1 to 2.1 (#124).
+- expirationd.start() parameter `space_id` has been renamed to `space` (#112).
+
+### Deprecated
+
+- Obsolete functions: task_stats, kill_task, get_task, get_tasks, run_task,
+  show_task_list.
+
+### Fixed
+
+- Do not restart a work fiber if an index does not exist (#64).
+- Build and installation of rpm/deb packages (#124).
+- test_mvcc_vinyl_tx_conflict (#104, #105).
+- Flaky 'simple expires test' (#90).
+- Changelogs.
+
 ## 1.2.0 - 2022-06-27
 
 This release adds a lot of test fixes, documentation and CI improvements. The

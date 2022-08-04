@@ -38,5 +38,42 @@ install -m 0644 cartridge/roles/expirationd.lua %{buildroot}%{_datarootdir}/tara
 %license LICENSE
 
 %changelog
+* Mon Jun 27 2022 Oleg Jukovec <oleg.jukovec@tarantool.org> 1.2.0-1
+- Check types of function arguments with checks module
+- Add messages about obsolete methods
+- Add metrics support
+- Prevent iteration through a functional index for Tarantool < 2.8.4
+- Fix processing tasks with zero length box.cfg.replication
+- Make iterate_with() conform to declared interface
+- Update documentation and convert to LDoc format
+- Support to generate documentation using make
+- Update comparison table in README.md
+- Add note about using expirationd with replication
+- Fix a typo in the rpm-package description
+- Fix function name in example:
+  function on_full_scan_complete -> function on_full_scan_error
+- Describe prerequisites and installation steps in README.md
+- Bump luatest version to 0.5.6
+- Fix incorrect description of the force option for the expirationd.start
+
+* Mon Sep 13 2021 Sergey Bronnikov <sergeyb@tarantool.org> 1.1.1-1
+- Fix freezes when stopping a task
+- Enable Lua source code analysis with luacheck
+
+* Tue Jul 06 2021 Sergey Bronnikov <sergeyb@tarantool.org> 1.1.0-1
+- Add the ability to set iteration and full scan delays for a task.
+- Add callbacks for a task at various stages of the full scan iteration.
+- Add the ability to specify from where to start the iterator
+  (option start_key) and specify the type of the iterator itself
+  (option iterator_type)
+- Add the ability to create a custom iterator that will be created at the
+  selected index (option iterate_with)
+- Add an option atomic_iteration that allows making only one transaction per
+  batch option
+- Fix worker iteration for a tree index
+
+* Sat Jan 22 2018 Roman Tsisyk <roman@tarantool.org> 1.0.1-1
+- First release with rockspecs
+
 * Thu Jun 18 2015 Roman Tsisyk <roman@tarantool.org> 1.0.0-1
 - Initial version of the RPM spec

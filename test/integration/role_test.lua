@@ -84,7 +84,7 @@ function g.test_start_task_from_config(cg)
     cg.cluster.main_server:upload_config({
         expirationd = {
             test_task = {
-                space_id = "customers",
+                space = "customers",
                 is_expired = "always_true_test",
                 is_master_only = true,
             }
@@ -122,7 +122,7 @@ function g.test_continue_after_hotreload(cg)
     cg.cluster.main_server:upload_config({
         expirationd = {
             test_task = {
-                space_id = "customers",
+                space = "customers",
                 is_expired = "is_expired_test_continue",
                 is_master_only = true,
                 options = {

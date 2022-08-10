@@ -106,7 +106,7 @@ local function get_task_config(task_conf)
     -- setmetatable resets __newindex write protection on a copy
     local conf = setmetatable(table.deepcopy(task_conf), {})
     local params_map = {
-        space_id = {required = true, types = {"n", "s"}},
+        space = {required = true, types = {"n", "s"}},
         is_expired = {required = true, types = {"f"}},
         is_master_only = {required = false, types = {"b"}},
         options = {required = false, types = {"t"}},
@@ -181,7 +181,7 @@ local function apply_config(conf_new, opts)
 
         local skip = task_conf.is_master_only and not opts.is_master
         if not skip then
-            local task = expirationd.start(task_name, task_conf.space_id,
+            local task = expirationd.start(task_name, task_conf.space,
                                            task_conf.is_expired,
                                            task_conf.options)
             if task == nil then

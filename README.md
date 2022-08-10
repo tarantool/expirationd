@@ -77,8 +77,8 @@ function is_expired(args, tuple)
   return true
 end
 
-function delete_tuple(space_id, args, tuple)
-  box.space[space_id]:delete{tuple[1]}
+function delete_tuple(space, args, tuple)
+  box.space[space]:delete{tuple[1]}
 end
 
 expirationd.start(job_name, space.id, is_expired, {
@@ -164,7 +164,7 @@ package with features:
   ```yaml
   expirationd:
     task_name1:
-      space_id: 579
+      space: 579
       is_expired: is_expired_func_name_in__G
       is_master_only: true
       options:

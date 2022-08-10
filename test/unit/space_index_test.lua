@@ -31,16 +31,37 @@ local function create_case_space(cg, space_name)
     cg.case_space:insert({2, "2"})
 end
 
-function g.test_start_on_existing_space_and_index(cg)
-    helpers.iteration_result = {}
-    local task = expirationd.start("clean_all", cg.space.id, helpers.is_expired_debug,
-                                   {index = "index_for_first_name"})
-    helpers.retrying({}, function()
-        t.assert_equals({{1, "1"}}, helpers.iteration_result)
-    end)
-    t.assert_not_equals(task, nil)
-    t.assert_equals(task:statistics().restarts, 1)
-    task:kill()
+local start_cases = {
+    by_name = {
+        space = function(cg)
+            return cg.space.name
+        end,
+        index = function()
+            return "index_for_first_name"
+        end,
+    },
+    by_id = {
+        space = function(cg)
+            return cg.space.id
+        end,
+        index = function(cg)
+            return cg.space.index["index_for_first_name"].id
+        end,
+    },
+}
+
+for name, case in pairs(start_cases) do
+    g["test_start_on_existing_space_and_index_" .. name] = function(cg)
+        helpers.iteration_result = {}
+        local task = expirationd.start("clean_all", case.space(cg), helpers.is_expired_debug,
+                                       {index = case.index(cg)})
+        helpers.retrying({}, function()
+            t.assert_equals({{1, "1"}}, helpers.iteration_result)
+        end)
+        t.assert_not_equals(task, nil)
+        t.assert_equals(task:statistics().restarts, 1)
+        task:kill()
+    end
 end
 
 local non_existing_start_cases = {

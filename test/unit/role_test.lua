@@ -107,21 +107,21 @@ local required_test_cases = {
     all_ok_space_number = {
         ok = true,
         cfg = { ["task_name"] = {
-            space_id = 1,
+            space = 1,
             is_expired = always_true_func_name,
         }}
     },
     all_ok_space_string = {
         ok = true,
         cfg = { ["task_name"] = {
-            space_id = "space name",
+            space = "space name",
             is_expired = always_true_func_name,
         }}
     },
     all_ok_empty_opts = {
         ok = true,
         cfg = { ["task_name"] = {
-            space_id = 1,
+            space = 1,
             is_expired = always_true_func_name,
             options = {}
         }}
@@ -133,7 +133,7 @@ local required_test_cases = {
     },
     no_space = {
         ok = false,
-        err = "expirationd: space_id is required",
+        err = "expirationd: space is required",
         cfg = { ["task_name"] = {
             is_expired = always_true_func_name,
         }}
@@ -142,22 +142,22 @@ local required_test_cases = {
         ok = false,
         err = "expirationd: is_expired is required",
         cfg = { ["task_name"] = {
-            space_id = 1,
+            space = 1,
         }}
     },
     invalid_name = {
         ok = false,
         err = "expirationd: task name must be a string",
         cfg = { [3] = {
-            space_id = "space name",
+            space = "space name",
             is_expired = always_true_func_name,
         }}
     },
     invalid_space = {
         ok = false,
-        err = "expirationd: space_id must be a number or a string",
+        err = "expirationd: space must be a number or a string",
         cfg = { ["task_name"] = {
-            space_id = {},
+            space = {},
             is_expired = always_true_func_name,
         }}
     },
@@ -165,7 +165,7 @@ local required_test_cases = {
         ok = false,
         err = "expirationd: is_expired must be a function name in _G",
         cfg = { ["task_name"] = {
-            space_id = 1,
+            space = 1,
             is_expired = 0,
         }}
     },
@@ -173,7 +173,7 @@ local required_test_cases = {
         ok = false,
         err = "expirationd: is_expired must be a function name in _G",
         cfg = { ["task_name"] = {
-            space_id = 1,
+            space = 1,
             is_expired = "any invelid func name",
         }}
     },
@@ -194,7 +194,7 @@ end
 
 local function create_valid_required(args)
     local new_args = table.deepcopy(args)
-    new_args["space_id"] = 1
+    new_args["space"] = 1
     new_args["is_expired"] = always_true_func_name
     return {expirationd = {["task_name"] = new_args}}
 end
@@ -471,11 +471,11 @@ function g.test_apply_config_start_tasks(cg)
     cg.role.apply_config({
         expirationd = {
             [task_name1] = {
-                space_id = g.space.id,
+                space = g.space.id,
                 is_expired = always_true_func_name,
             },
             [task_name2] = {
-                space_id = g.space.id,
+                space = g.space.id,
                 is_expired = always_true_func_name,
                 options = {}
             },
@@ -515,7 +515,7 @@ function g.test_apply_config_start_task_with_all_options(cg)
     cg.role.apply_config({
         expirationd = {
             [task_name] = {
-                space_id = g.space.id,
+                space = g.space.id,
                 is_expired = always_true_func_name,
                 options = options,
             }
@@ -530,7 +530,7 @@ function g.test_apply_config_start_task_with_all_options(cg)
     local ok, _ = pcall(cg.role.apply_config, {
         expirationd = {
             [task_name] = {
-                space_id = g.space.id,
+                space = g.space.id,
                 is_expired = always_true_func_name,
                 options = options,
             }
@@ -546,7 +546,7 @@ function g.test_apply_config_skip_is_master_only(cg)
     cg.role.apply_config({
         expirationd = {
             [task_name] = {
-                space_id = g.space.id,
+                space = g.space.id,
                 is_expired = always_true_func_name,
                 is_master_only = true,
             },
@@ -562,7 +562,7 @@ function g.test_apply_config_start_is_master_only(cg)
     cg.role.apply_config({
         expirationd = {
             [task_name] = {
-                space_id = g.space.id,
+                space = g.space.id,
                 is_expired = always_true_func_name,
                 is_master_only = true,
             },
@@ -586,15 +586,15 @@ function g.test_apply_config_empty_repeat_kill_all_config_tasks(cg)
     cg.role.apply_config({
         expirationd = {
             [config_name1] = {
-                space_id = g.space.id,
+                space = g.space.id,
                 is_expired = always_true_func_name,
             },
             [config_name2] = {
-                space_id = g.space.id,
+                space = g.space.id,
                 is_expired = always_true_func_name,
             },
             [config_name3] = {
-                space_id = g.space.id,
+                space = g.space.id,
                 is_expired = always_true_func_name,
             },
         },
@@ -622,15 +622,15 @@ function g.test_apply_config_empty_repeat_handle_custom_stops(cg)
     cg.role.apply_config({
         expirationd = {
             [config_name1] = {
-                space_id = g.space.id,
+                space = g.space.id,
                 is_expired = always_true_func_name,
             },
             [config_name2] = {
-                space_id = g.space.id,
+                space = g.space.id,
                 is_expired = always_true_func_name,
             },
             [config_name3] = {
-                space_id = g.space.id,
+                space = g.space.id,
                 is_expired = always_true_func_name,
             },
         },
@@ -661,15 +661,15 @@ function g.test_apply_config_repeat_kill_old_config_tasks(cg)
     cg.role.apply_config({
         expirationd = {
             [config_name1] = {
-                space_id = g.space.id,
+                space = g.space.id,
                 is_expired = always_true_func_name,
             },
             [config_name2] = {
-                space_id = g.space.id,
+                space = g.space.id,
                 is_expired = always_true_func_name,
             },
             [config_name3] = {
-                space_id = g.space.id,
+                space = g.space.id,
                 is_expired = always_true_func_name,
             },
         },
@@ -685,7 +685,7 @@ function g.test_apply_config_repeat_kill_old_config_tasks(cg)
     cg.role.apply_config({
         expirationd = {
             [config_name2] = {
-                space_id = cg.space.id,
+                space = cg.space.id,
                 is_expired = always_true_func_name,
             },
         },

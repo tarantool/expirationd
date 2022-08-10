@@ -169,11 +169,11 @@ end
 -- Task fibers
 -- ------------------------------------------------------------------------- --
 local function check_space_and_index_exist(task)
-    local space = box.space[task.space_id]
+    local space = box.space[task.space]
     if space == nil then
         local prefix = "Space with " ..
-                       (type(task.space_id) == "string" and "name " or "id ")
-        return false, prefix .. task.space_id .. " does not exist"
+                       (type(task.space) == "string" and "name " or "id ")
+        return false, prefix .. task.space .. " does not exist"
     end
 
     local index = space.index[task.index]
@@ -192,7 +192,7 @@ local function check_space_and_index(task)
         return false, err
     end
 
-    local space = box.space[task.space_id]
+    local space = box.space[task.space]
     local index = space.index[task.index]
     if index.type ~= "TREE" and index.type ~= "HASH" then
         return false, "Not supported index type, expected TREE or HASH"
@@ -231,10 +231,10 @@ local function check_space_and_index(task)
 end
 
 -- get all fields in key(composite possible) from a tuple
-local function construct_key(space_id, index, tuple)
+local function construct_key(space, index, tuple)
     return fun.map(
         function(x) return tuple[x.fieldno] end,
-        box.space[space_id].index[index].parts
+        box.space[space].index[index].parts
     ):totable()
 end
 
@@ -243,7 +243,7 @@ local function expiration_process(task, tuple)
     task.checked_tuples_count = task.checked_tuples_count + 1
     if task.is_tuple_expired(task.args, tuple) then
         task.expired_tuples_count = task.expired_tuples_count + 1
-        task.process_expired_tuple(task.space_id, task.args, tuple, task)
+        task.process_expired_tuple(task.space, task.args, tuple, task)
     end
 end
 
@@ -256,7 +256,7 @@ end
 
 local function suspend(task)
     -- Return the number of tuples in the space
-    local index = box.space[task.space_id].index[task.index]
+    local index = box.space[task.space].index[task.index]
     local space_len = index:len()
     if space_len > 0 then
         suspend_basic(task, space_len)
@@ -291,7 +291,7 @@ local function default_do_worker_iteration(task)
                 end
             end
             checked_tuples_count = 0
-            if box.space[task.space_id].engine == "vinyl" then
+            if box.space[task.space].engine == "vinyl" then
                 if vinyl_checked_tuples_count > space_len then
                     space_len = task.vinyl_assumed_space_len_factor * space_len
                 end
@@ -312,7 +312,7 @@ local function default_do_worker_iteration(task)
     if task.atomic_iteration then
         box.commit()
     end
-    if box.space[task.space_id].engine == "vinyl" then
+    if box.space[task.space].engine == "vinyl" then
         task.vinyl_assumed_space_len = vinyl_checked_tuples_count
     end
 end
@@ -322,7 +322,7 @@ local function worker_loop(task)
     fiber.name(string.format("worker of %q", task.name), { truncate = true })
 
     -- https://www.tarantool.io/en/doc/latest/reference/configuration/#confval-read_only
-    local space = box.space[task.space_id]
+    local space = box.space[task.space]
     local is_ro_writable = space.temporary or space.is_local
     local is_skipped = false
     while true do
@@ -550,7 +550,7 @@ local function create_task(name)
         start_time            = fiber.time(),
         guardian_fiber        = nil,
         worker_fiber          = nil,
-        space_id              = nil,
+        space                 = nil,
         expired_tuples_count  = 0,
         checked_tuples_count  = 0,
         restarts              = 0,
@@ -594,12 +594,12 @@ end
 
 -- default process_expired_tuple function
 -- luacheck: ignore unused args
-local function default_tuple_drop(space_id, args, tuple)
-    box.space[space_id]:delete(construct_key(space_id, 0, tuple))
+local function default_tuple_drop(space, args, tuple)
+    box.space[space]:delete(construct_key(space, 0, tuple))
 end
 
 local function create_continue_key(tuple, old_parts, task)
-    local index = box.space[task.space_id].index[task.index]
+    local index = box.space[task.space].index[task.index]
 
     if tuple == nil or #old_parts ~= #index.parts then
         return nil
@@ -613,7 +613,7 @@ local function create_continue_key(tuple, old_parts, task)
         end
     end
 
-    return construct_key(task.space_id, task.index, tuple)
+    return construct_key(task.space, task.index, tuple)
 end
 
 local continue_iterators_map = {}
@@ -637,14 +637,14 @@ local function create_continue_state(task)
     local key = nil
     local it = nil
     local c = task_continue[task.name]
-    if c and c.space_id == task.space_id and c.index == task.index and c.it == task.iterator_type then
+    if c and c.space == task.space and c.index == task.index and c.it == task.iterator_type then
         key = create_continue_key(c.tuple, c.index_parts, task)
         it = continue_iterators_map[task.iterator_type]
     end
 
-    local index = box.space[task.space_id].index[task.index]
+    local index = box.space[task.space].index[task.index]
     task_continue[task.name] = {
-        space_id = task.space_id,
+        space = task.space,
         index = task.index,
         index_parts = table.deepcopy(index.parts),
         it = task.iterator_type,
@@ -660,7 +660,7 @@ end
 -- default iterate_with function
 local function default_iterate_with(task)
     local continue_key, continue_it = create_continue_state(task)
-    local index = box.space[task.space_id].index[task.index]
+    local index = box.space[task.space].index[task.index]
     local iter, param, state = index:pairs(continue_key or task.start_key(),
                                            { iterator = continue_it or task.iterator_type })
        :take_while(
@@ -781,9 +781,9 @@ end
 --
 -- @string name
 --     Task name.
--- @string space_id
---     Space to look in for expired tuples. `space_id` can be numeric or
---     string.
+-- @string space
+--     Space to look in for expired tuples. `space` can be numeric or
+--     string. It can be a space id or a space name, respectively.
 -- @func is_tuple_expired
 --     Function, must accept tuple and return `true` or `false` (is tuple
 --     expired or not), receives `args` and `tuple` as arguments.
@@ -891,18 +891,18 @@ end
 --     Function to call after successfully completing a full scan iteration.
 --     Default value is a function that do nothing.
 -- @func[opt] options.process_expired_tuple
---     Applied to expired tuples, receives `space_id`, `args`, `tuple` as
+--     Applied to expired tuples, receives `space`, `args`, `tuple` as
 --     arguments. When `process_expired_tuple` is not passed (or `nil` passed),
 --     tuples are removed.
 --
 -- Example of function:
 --
 -- ```
--- local function put_tuple_to_archive(space_id, args, tuple)
---     box.space[space_id]:delete{tuple[1]}
+-- local function put_tuple_to_archive(space, args, tuple)
+--     box.space[space]:delete{tuple[1]}
 --     local email = tuple[2]
---     if args.archive_space_id ~= nil and email ~= nil then
---         box.space[args.archive_space_id]:replace{email, fiber.time()}
+--     if args.archive_space ~= nil and email ~= nil then
+--         box.space[args.archive_space]:replace{email, fiber.time()}
 --     end
 -- end
 -- ```
@@ -961,8 +961,8 @@ end
 --     return true
 -- end
 --
--- local function delete_tuple(space_id, args, tuple)
---     box.space[space_id]:delete{tuple[1]}
+-- local function delete_tuple(space, args, tuple)
+--     box.space[space]:delete{tuple[1]}
 -- end
 --
 -- expirationd.start(job_name, space.id, is_expired, {
@@ -973,7 +973,7 @@ end
 -- })
 --
 -- @function expirationd.start
-local function expirationd_run_task(name, space_id, is_tuple_expired, options)
+local function expirationd_run_task(name, space, is_tuple_expired, options)
     checks('string', 'number|string', 'function', {
         args = '?',
         atomic_iteration = '?boolean',
@@ -1009,7 +1009,7 @@ local function expirationd_run_task(name, space_id, is_tuple_expired, options)
     options = options or {}
 
     local task = create_task(name)
-    task.space_id = space_id
+    task.space = space
     task.index = options.index or 0
     task.force_allow_functional_index = options.force_allow_functional_index
 
@@ -1118,7 +1118,7 @@ local function expirationd_run_task(name, space_id, is_tuple_expired, options)
 end
 
 local function run_task_obsolete(name,
-                              space_id,
+                              space,
                               is_tuple_expired,
                               process_expired_tuple,
                               args,
@@ -1126,7 +1126,7 @@ local function run_task_obsolete(name,
                               full_scan_time)
     log.info("expirationd.run_task() is obsolete, please consider a switching to expirationd.start()")
     return expirationd_run_task(
-        name, space_id, is_tuple_expired, {
+        name, space, is_tuple_expired, {
             process_expired_tuple = process_expired_tuple,
             args = args,
             full_scan_time = full_scan_time,
@@ -1252,7 +1252,7 @@ local function expirationd_update()
             task_continue[task.name] = tmp_task_continue[task.name]
         end
         expd_new.start(
-            task.name, task.space_id,
+            task.name, task.space,
             task.is_tuple_expired, {
                 process_expired_tuple = task.process_expired_tuple,
                 args = task.args, tuples_per_iteration = task.tuples_per_iteration,

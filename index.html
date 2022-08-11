@@ -83,7 +83,7 @@
 	<td class="summary">Configure expirationd.</td>
 	</tr>
 	<tr>
-	<td class="name" nowrap><a href="#start">start (name, space_id, is_tuple_expired[, options])</a></td>
+	<td class="name" nowrap><a href="#start">start (name, space, is_tuple_expired[, options])</a></td>
 	<td class="summary">Run a scheduled task to check and process (expire) tuples in a given space.</td>
 	</tr>
 	<tr>
@@ -373,7 +373,7 @@
 </dd>
     <dt>
     <a name="start"></a>
-    <strong>start (name, space_id, is_tuple_expired[, options])</strong>
+    <strong>start (name, space, is_tuple_expired[, options])</strong>
     </dt>
     <dd>
     <p>Run a scheduled task to check and process (expire) tuples in a given space. <table class="markdown_table">
@@ -408,15 +408,15 @@
      Task name.</p>
         </span>
         </li>
-        <li><span class="parameter">space_id</span>
+        <li><span class="parameter">space</span>
             <span class="parameter-info">
                 (<span class="types"><span class="type">string</span></span>)
             </span>
         <br>
         <span class="parameter-description">
         <p>
-     Space to look in for expired tuples. <code>space_id</code> can be numeric or
-     string.</p>
+     Space to look in for expired tuples. <code>space</code> can be numeric or
+     string. It can be a space id or a space name, respectively.</p>
         </span>
         </li>
         <li><span class="parameter">is_tuple_expired</span>
@@ -695,15 +695,15 @@
         <br>
         <span class="parameter-description">
         <p>
-     Applied to expired tuples, receives <code>space_id</code>, <code>args</code>, <code>tuple</code> as
+     Applied to expired tuples, receives <code>space</code>, <code>args</code>, <code>tuple</code> as
      arguments. When <code>process_expired_tuple</code> is not passed (or <code>nil</code> passed),
      tuples are removed.
 <p> Example of function:
-<p><pre> local function put_tuple_to_archive(space_id, args, tuple)
-     box.space[space_id]:delete{tuple[1]}
+<p><pre> local function put_tuple_to_archive(space, args, tuple)
+     box.space[space]:delete{tuple[1]}
      local email = tuple[2]
-     if args.archive_space_id ~= nil and email ~= nil then
-         box.space[args.archive_space_id]:replace{email, fiber.time()}
+     if args.archive_space ~= nil and email ~= nil then
+         box.space[args.archive_space]:replace{email, fiber.time()}
      end
  end</pre>
 </p>
@@ -820,8 +820,8 @@ box.cfg{}
     <span class="keyword">return</span> <span class="keyword">true</span>
 <span class="keyword">end</span>
 
-<span class="keyword">local</span> <span class="keyword">function</span> delete_tuple(space_id, args, tuple)
-    box.space[space_id]:delete{tuple[<span class="number">1</span>]}
+<span class="keyword">local</span> <span class="keyword">function</span> delete_tuple(space, args, tuple)
+    box.space[space]:delete{tuple[<span class="number">1</span>]}
 <span class="keyword">end</span>
 
 expirationd.start(job_name, space.id, is_expired, {

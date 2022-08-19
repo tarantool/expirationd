@@ -10,8 +10,9 @@ local g = t.group('custom_index', {
 })
 
 g.before_each({index_type = 'TREE'}, function(cg)
-    t.skip_if(cg.params.engine == 'vinyl' and helpers.vinyl_is_broken(),
-        'Blocked by https://github.com/tarantool/tarantool/issues/6448')
+    t.skip_if(cg.params.engine == 'vinyl' and not helpers.vinyl_is_supported(),
+        'Blocked by https://github.com/tarantool/tarantool/issues/6448 on ' ..
+		'this Tarantool version')
     g.space = helpers.create_space_with_tree_index(cg.params.engine)
 end)
 
@@ -197,11 +198,15 @@ function g.test_tree_index_multikey(cg)
     task:kill()
 end
 
-function g.test_memtx_tree_functional_index_broken(cg)
-    t.skip_if(_TARANTOOL < "2" or not helpers.memtx_func_index_is_broken(),
-              "Unsupported Tarantool version")
-    t.skip_if(cg.params.index_type ~= 'TREE', 'Unsupported index type')
+function g.test_memtx_tree_functional_index_broken_error(cg)
     t.skip_if(cg.params.engine == 'vinyl', 'Unsupported engine')
+    t.skip_if(cg.params.index_type ~= 'TREE', 'Unsupported index type')
+    t.skip_if(cg.space.index["functional_index"] == nil,
+        "Functional indexes are not supported by Tarantool")
+    t.skip_if(helpers.memtx_func_index_is_supported(),
+        "No errors expected from https://github.com/tarantool/tarantool/issues/6786 " ..
+		"on this Tarantool version")
+
     local expected = "Functional indices are not supported for Tarantool < 2.8.4," ..
                      " see options.force_allow_functional_index"
 
@@ -219,10 +224,13 @@ function g.test_memtx_tree_functional_index_broken(cg)
 end
 
 function g.test_memtx_tree_functional_index_force_broken(cg)
-    t.skip_if(_TARANTOOL < "2" or not helpers.memtx_func_index_is_broken(),
-              "Unsupported Tarantool version")
-    t.skip_if(cg.params.index_type ~= 'TREE', 'Unsupported index type')
     t.skip_if(cg.params.engine == 'vinyl', 'Unsupported engine')
+    t.skip_if(cg.params.index_type ~= 'TREE', 'Unsupported index type')
+    t.skip_if(cg.space.index["functional_index"] == nil,
+        "Functional indexes are not supported by Tarantool")
+    t.skip_if(helpers.memtx_func_index_is_supported(),
+        "No errors expected from https://github.com/tarantool/tarantool/issues/6786 " ..
+		"on this Tarantool version")
 
     helpers.iteration_result = {}
 
@@ -252,11 +260,16 @@ function g.test_memtx_tree_functional_index_force_broken(cg)
     task:kill()
 end
 
+-- Vinyl is not supported yet:
+-- https://github.com/tarantool/tarantool/issues/4492
 function g.test_memtx_tree_functional_index(cg)
-    t.skip_if(_TARANTOOL < "2" or helpers.memtx_func_index_is_broken(),
-              "Unsupported Tarantool version")
-    t.skip_if(cg.params.index_type ~= 'TREE', 'Unsupported index type')
     t.skip_if(cg.params.engine == 'vinyl', 'Unsupported engine')
+    t.skip_if(cg.params.index_type ~= 'TREE', 'Unsupported index type')
+    t.skip_if(cg.space.index["functional_index"] == nil,
+        "Functional indexes are not supported by Tarantool")
+    t.skip_if(not helpers.memtx_func_index_is_supported(),
+        "Blocked by https://github.com/tarantool/tarantool/issues/6786 on " ..
+		"this Tarantool version")
 
     helpers.iteration_result = {}
 

@@ -258,25 +258,33 @@ function helpers.tarantool_version()
     return major, minor, patch
 end
 
-function helpers.vinyl_is_broken()
-    -- Blocked by https://github.com/tarantool/tarantool/issues/6448
+function helpers.vinyl_is_supported()
     local major, minor, patch = helpers.tarantool_version()
 
-    -- Since Tarantool 1.10.11.
-    local broken_v1_10 = major >= 1 and (minor > 10 or minor == 10 and patch >= 11)
-
-    -- Tarantool >= 2.1.0 and < 2.8.2.
-    local broken_v2 = (major >= 2 and major < 3) and (minor >= 1 and minor < 8 or minor == 8 and patch <= 2)
-
-    return broken_v1_10 or broken_v2
+    -- The issue: https://github.com/tarantool/tarantool/issues/6448
+    --
+    -- The problem was introduced in 1.10.2 and fixed in 1.10.12, 2.8.3 and
+    -- after a 2.10 release.
+    return (major == 1 and minor <= 9) or
+        (major == 1 and minor == 10 and patch <= 1) or
+        (major == 1 and minor == 10 and patch >= 12) or
+        (major == 1 and minor >= 11) or
+        (major == 2 and minor == 8 and patch >= 3) or
+        (major == 2 and minor >= 10) or
+        (major >= 3)
 end
 
-function helpers.memtx_func_index_is_broken()
+function helpers.memtx_func_index_is_supported()
     local major, minor, patch = helpers.tarantool_version()
-    if major > 2 or (major == 2 and minor == 8 and patch >= 4) or (major == 2 and minor >= 10) then
-        return false
-    end
-    return true
+
+    -- The issue: https://github.com/tarantool/tarantool/issues/6786
+    --
+    -- Functional indexes for memtx storage engine are introduced in 2.2.1 with
+    -- a bug. The 1.10 series does not support them at all. The problem was
+    -- fixed in 2.8.4 and after a 2.10 release.
+    return (major == 2 and minor == 8 and patch >= 4) or
+        (major == 2 and minor >= 10) or
+        (major >= 3)
 end
 
 return helpers

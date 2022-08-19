@@ -13,6 +13,9 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 
+- Incorrect check of the Tarantool version in the tests to determine a bug in
+  the vinyl engine that breaks the tests (#103).
+
 ## 1.3.0 - 2022-08-11
 
 This release adds a Tarantool Cartridge role for expirationd package and

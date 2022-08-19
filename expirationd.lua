@@ -199,7 +199,6 @@ local function check_space_and_index(task)
     end
 
     if space.engine == "memtx" and index.func ~= nil then
-        local supported = false
         local version = rawget(_G, "_TARANTOOL"):split('-', 1)[1]
         local major_minor_patch = version:split('.', 2)
 
@@ -208,10 +207,9 @@ local function check_space_and_index(task)
         local patch = tonumber(major_minor_patch[3])
         -- https://github.com/tarantool/expirationd/issues/101
         -- fixed since 2.8.4 and 2.10
-        if (major > 2) or (major == 2 and minor == 8 and patch >= 4)
-          or (major == 2 and minor >= 10) then
-            supported = true
-        end
+        local supported = (major == 2 and minor == 8 and patch >= 4) or
+            (major == 2 and minor >= 10) or
+            (major >= 3)
         local force_allow = task.force_allow_functional_index or false
         if not supported and not force_allow then
             return false, "Functional indices are not supported for" ..

@@ -63,7 +63,7 @@ function g.test_expirationd_task_in_role(cg)
     local task = expirationd.start(task_name, cg.space.id, helpers.is_expired_debug, {})
     t.assert_not_equals(task, nil)
 
-    t.assert_equals(#cg.role.tasks(), 1)
+    helpers.retrying({}, function() t.assert_equals(#cg.role.tasks(), 1)  end)
     t.assert_not_equals(cg.role.task(task_name), nil)
 
     task:kill()
@@ -93,13 +93,13 @@ function g.test_stop_all_tasks(cg)
     t.assert_not_equals(e_task, nil)
     local r_task = cg.role.start("r", cg.space.id, helpers.is_expired_debug, opts)
     t.assert_not_equals(r_task, nil)
-    t.assert_equals(is_task_processes("e"), true)
-    t.assert_equals(is_task_processes("r"), true)
+    helpers.retrying({}, function() t.assert_equals(is_task_processes("e"), true) end)
+    helpers.retrying({}, function() t.assert_equals(is_task_processes("r"), true) end)
 
     cg.role.stop()
 
-    t.assert_equals(is_task_processes("e"), false)
-    t.assert_equals(is_task_processes("r"), false)
+    helpers.retrying({}, function() t.assert_equals(is_task_processes("e"), false) end)
+    helpers.retrying({}, function() t.assert_equals(is_task_processes("r"), false) end)
 
     e_task:kill()
     r_task:kill()
@@ -720,7 +720,8 @@ function g.test_apply_config_empty_repeat_kill_all_config_tasks(cg)
         },
     }, {is_master = false})
 
-    t.assert_equals(#cg.role.tasks(), 5)
+    helpers.retrying({}, function() t.assert_equals(#cg.role.tasks(), 5)  end)
+
     t.assert_not_equals(cg.role.task(local_name1), nil)
     t.assert_not_equals(cg.role.task(local_name2), nil)
     t.assert_not_equals(cg.role.task(config_name1), nil)
@@ -795,7 +796,7 @@ function g.test_apply_config_repeat_kill_old_config_tasks(cg)
         },
     }, {is_master = false})
 
-    t.assert_equals(#cg.role.tasks(), 5)
+    helpers.retrying({}, function() t.assert_equals(#cg.role.tasks(), 5)  end)
     t.assert_not_equals(cg.role.task(local_name1), nil)
     t.assert_not_equals(cg.role.task(local_name2), nil)
     t.assert_not_equals(cg.role.task(config_name1), nil)

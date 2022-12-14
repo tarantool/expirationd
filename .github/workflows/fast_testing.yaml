@@ -43,7 +43,7 @@ jobs:
     env:
       TNT_DEBUG_PATH: /home/runner/tnt-debug
 
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     steps:
       - name: Install tarantool ${{ matrix.tarantool }}
         if: startsWith(matrix.tarantool, 'debug') != true

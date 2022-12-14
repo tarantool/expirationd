@@ -1,3 +1,5 @@
+project = 'expirationd'
+description = 'Expiration daemon module for Tarantool'
 file = 'expirationd'
 title = 'expirationd API reference'
 

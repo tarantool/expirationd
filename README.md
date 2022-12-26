@@ -157,12 +157,26 @@ package with features:
   local task = cartridge.service_get('expirationd').start("task_name", id, is_expired)
   task:kill()
   ```
+* You could configure the expirationd role with `cfg` entry.
+  [expirationd.cfg()](https://tarantool.github.io/expirationd/#cfg) has the
+  same parameters with the same meaning.
+
+  Be careful, values from the clusterwide configuration are applied by default
+  to all nodes on each
+  [apply_config()](https://www.tarantool.io/en/doc/latest/book/cartridge/cartridge_dev/).
+  Changing the configuration manually with
+  [expirationd.cfg()](https://tarantool.github.io/expirationd/#cfg)
+  only affects the current node and does not update values in the clusterwide
+  configuration. The manual change will be overwritten by a next
+  `apply_config` call.
 * The role stops all expirationd tasks on an instance on the role termination.
 * The role can automatically start or kill old tasks from the role
   configuration:
 
   ```yaml
   expirationd:
+    cfg:
+      metrics: true
     task_name1:
       space: 579
       is_expired: is_expired_func_name_in__G

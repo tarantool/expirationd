@@ -8,6 +8,10 @@ local is_cartridge_roles, _ = pcall(require, 'cartridge.roles')
 local always_true_func_name = "expirationd_test_always_true"
 local iterate_pairs_func_name = "expirationd_test_pairs"
 
+g.before_all(function()
+    g.default_cfg = { metrics = expirationd.cfg.metrics }
+end)
+
 g.before_each(function()
     t.skip_if(not is_cartridge_roles, "cartridge is not installed")
 
@@ -19,11 +23,14 @@ g.before_each(function()
         g.role.kill(t)
     end
 
+    g.is_metrics_supported = helpers.is_metrics_supported()
+
     rawset(_G, always_true_func_name, function() return true end)
     rawset(_G, iterate_pairs_func_name, function() return pairs({}) end)
 end)
 
 g.after_each(function(g)
+    expirationd.cfg(g.default_cfg)
     g.space:drop()
     g.role.stop()
     for _, t in ipairs(g.role.tasks()) do
@@ -104,6 +111,31 @@ function g.test_validate_config_empty(cg)
 end
 
 local required_test_cases = {
+    cfg_empty = {
+        ok = true,
+        cfg = { ["cfg"] = {
+        }}
+    },
+    cfg_invalid_param = {
+        ok = false,
+        err = "expirationd: unsupported config option any",
+        cfg = { ["cfg"] = {
+            any = 1,
+        }}
+    },
+    cfg_metrics = {
+        ok = true,
+        cfg = { ["cfg"] = {
+            metrics = true,
+        }}
+    },
+    cfg_metrics_invalid_value = {
+        ok = false,
+        err = "expirationd: metrics must be a boolean",
+        cfg = { ["cfg"] = {
+            metrics = 12,
+        }}
+    },
     all_ok_space_number = {
         ok = true,
         cfg = { ["task_name"] = {
@@ -124,6 +156,13 @@ local required_test_cases = {
             space = 1,
             is_expired = always_true_func_name,
             options = {}
+        }}
+    },
+    all_ok_task_cfg = {
+        ok = true,
+        cfg = { ["cfg"] = {
+            space = "space name",
+            is_expired = always_true_func_name,
         }}
     },
     not_table = {
@@ -485,6 +524,87 @@ function g.test_apply_config_start_tasks(cg)
     t.assert_equals(#cg.role.tasks(), 2)
     t.assert_not_equals(cg.role.task(task_name1), nil)
     t.assert_not_equals(cg.role.task(task_name2), nil)
+end
+
+function g.test_apply_config_cfg_empty_do_nothing(cg)
+    t.skip_if(not g.is_metrics_supported,
+              "metrics >= 0.11.0 is not installed")
+    local task_name1 = "apply_config_test1"
+
+    expirationd.cfg({metrics = not g.default_cfg.metrics})
+    t.assert_equals(expirationd.cfg.metrics, not g.default_cfg.metrics)
+
+    cg.role.apply_config({
+        expirationd = {
+            ["cfg"] = {},
+            [task_name1] = {
+                space = g.space.id,
+                is_expired = always_true_func_name,
+            },
+        }
+    }, {is_master = false})
+
+    t.assert_equals(#cg.role.tasks(), 1)
+    t.assert_not_equals(cg.role.task(task_name1), nil)
+    t.assert_equals(expirationd.cfg.metrics, not g.default_cfg.metrics)
+end
+
+function g.test_apply_config_cfg_metrics_default(cg)
+    t.skip_if(not g.is_metrics_supported,
+              "metrics >= 0.11.0 is not installed")
+    local task_name1 = "apply_config_test1"
+
+    cg.role.apply_config({
+        expirationd = {
+            [task_name1] = {
+                space = g.space.id,
+                is_expired = always_true_func_name,
+            },
+        }
+    }, {is_master = false})
+
+    t.assert_equals(#cg.role.tasks(), 1)
+    t.assert_not_equals(cg.role.task(task_name1), nil)
+    t.assert_equals(expirationd.cfg.metrics, g.default_cfg.metrics)
+end
+
+function g.test_apply_config_cfg_metrics(cg)
+    t.skip_if(not g.is_metrics_supported,
+              "metrics >= 0.11.0 is not installed")
+    local task_name1 = "apply_config_test1"
+
+    for _, value in ipairs({false, true}) do
+        cg.role.apply_config({
+            expirationd = {
+                ["cfg"] = {
+                    metrics = value,
+                },
+                [task_name1] = {
+                    space = g.space.id,
+                    is_expired = always_true_func_name,
+                },
+            }
+        }, {is_master = false})
+
+        t.assert_equals(#cg.role.tasks(), 1)
+        t.assert_not_equals(cg.role.task(task_name1), nil)
+        t.assert_equals(expirationd.cfg.metrics, value)
+    end
+end
+
+function g.test_apply_config_start_cfg_task(cg)
+    local task_name = "cfg"
+    cg.role.apply_config({
+        expirationd = {
+            [task_name] = {
+                space = g.space.id,
+                is_expired = always_true_func_name,
+            },
+        }
+    }, {is_master = false})
+
+    t.assert_equals(#cg.role.tasks(), 1)
+    t.assert_not_equals(cg.role.task(task_name), nil)
 end
 
 function g.test_apply_config_start_task_with_all_options(cg)

@@ -137,6 +137,33 @@ local function get_task_config(task_conf)
     return conf
 end
 
+local function get_cfg(cfg)
+    local conf = setmetatable(table.deepcopy(cfg), {})
+    local params_map = {
+        metrics = {"b"},
+    }
+
+    for k, _ in pairs(conf) do
+        if type(k) ~= "string" then
+            error(role_name .. ": config option must be a string")
+        end
+        if params_map[k] == nil then
+            error(role_name .. ": unsupported config option " .. k)
+        end
+    end
+
+    for param, types in pairs(params_map) do
+        if conf[param] ~= nil then
+            local ok, res = get_param(param, conf[param], types)
+            if not ok then
+                error(res)
+            end
+        end
+    end
+
+    return conf
+end
+
 local function init()
 
 end
@@ -153,7 +180,14 @@ local function validate_config(conf_new)
         if not ok then
             error(res)
         end
-        get_task_config(task_conf)
+        local ok, ret = pcall(get_task_config, task_conf)
+        if not ok then
+            if task_name == "cfg" then
+                get_cfg(task_conf)
+            else
+                error(ret)
+            end
+        end
     end
 
     return true
@@ -174,6 +208,15 @@ local function apply_config(conf_new, opts)
             end
         end
         table.remove(started, i)
+    end
+
+    if conf["cfg"] ~= nil then
+        local ok = pcall(get_task_config, conf["cfg"])
+        if not ok then
+            local cfg = get_cfg(conf["cfg"])
+            expirationd.cfg(cfg)
+            conf["cfg"] = nil
+        end
     end
 
     for task_name, task_conf in pairs(conf) do

@@ -9,14 +9,21 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
-- expirationd configuration via Tarantool Cartridge role configuration (#131).
-
 ### Changed
 
 ### Fixed
 
-- Incorrect check of the Tarantool version in the tests to determine a bug in
+## 1.3.1 - 2023-01-17
+
+The release adds a missed ability to configure the expirationd using
+Tarantool Cartridge role configuration.
+
+### Fixed
+
+- Incorrect check of the Tarantool version in tests to determine a bug in
   the vinyl engine that breaks the tests (#103).
+- There is no way to configure the module using Tarantool Cartridge role
+  configuration (#131).
 
 ## 1.3.0 - 2022-08-11
 

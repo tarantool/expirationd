@@ -6,8 +6,18 @@ on:
     tags: ['*']
 
 jobs:
+  version-check:
+    # We need this job to run only on push with tag.
+    if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/') }}
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Check module version
+        uses: tarantool/actions/check-module-version@master
+        with:
+          module-name: 'expirationd'
+
   publish-rockspec-scm-1:
-    if: github.ref == 'refs/heads/master'
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/master' }}
     runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@v3
@@ -17,7 +27,8 @@ jobs:
           files: expirationd-scm-1.rockspec
 
   publish-rockspec-tag:
-    if: startsWith(github.ref, 'refs/tags/')
+    if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/') }}
+    needs: version-check
     runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@v3
@@ -60,7 +71,7 @@ jobs:
             expirationd-${{ env.TAG }}-1.all.rock
 
   publish-ldoc:
-    if: github.ref == 'refs/heads/master'
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/master' }}
     runs-on: ubuntu-latest
     steps:
       - name: Install Tarantool

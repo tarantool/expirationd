@@ -682,6 +682,25 @@ local function default_iterate_with(task)
     end
 end
 
+-- ========================================================================= --
+-- Expiration daemon constants
+-- ========================================================================= --
+--
+-- {{{ Module constants
+--
+
+local _VERSION
+
+--- Module constants
+--
+-- @section Constants
+--
+
+--- Current module version in format `MAJOR.MINOR.PATCH`.
+_VERSION = require('expirationd.version')
+
+--
+-- }}} Module constants
 
 -- ========================================================================= --
 -- Expiration daemon management functions
@@ -1311,6 +1330,8 @@ return {
     get_tasks      = get_tasks_obsolete,
     run_task       = run_task_obsolete,
     show_task_list = show_task_list_obsolete,
+
+    _VERSION = _VERSION,
 }
 
 -- }}} Module functions

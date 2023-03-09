@@ -1,2 +1,2 @@
-expirationd.lua usr/share/tarantool/
+expirationd usr/share/tarantool/
 cartridge/roles/expirationd.lua usr/share/tarantool/cartridge/roles/

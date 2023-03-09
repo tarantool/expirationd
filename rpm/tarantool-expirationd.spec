@@ -26,12 +26,13 @@ some other space.
 
 %install
 install -d %{buildroot}%{_datarootdir}/tarantool/
-install -m 0644 expirationd.lua %{buildroot}%{_datarootdir}/tarantool/
+install -d %{buildroot}%{_datarootdir}/tarantool/expirationd/
+install -m 0644 expirationd/* %{buildroot}%{_datarootdir}/tarantool/expirationd/
 install -d %{buildroot}%{_datarootdir}/tarantool/cartridge/roles/
 install -m 0644 cartridge/roles/expirationd.lua %{buildroot}%{_datarootdir}/tarantool/cartridge/roles/expirationd.lua
 
 %files
-%{_datarootdir}/tarantool/expirationd.lua
+%{_datarootdir}/tarantool/expirationd/
 %{_datarootdir}/tarantool/cartridge
 %doc README.md
 %{!?_licensedir:%global license %doc}

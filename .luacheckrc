@@ -1,6 +1,7 @@
 globals = {
     "box",
     "_TARANTOOL",
+    "_VERSION",
 }
 
 ignore = {

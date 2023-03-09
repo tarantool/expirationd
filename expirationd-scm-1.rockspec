@@ -17,7 +17,7 @@ dependencies = {
 build = {
     type = "builtin",
     modules = {
-        ["expirationd"] = "expirationd.lua",
+        ["expirationd"] = "expirationd/init.lua",
         ["cartridge.roles.expirationd"] = "cartridge/roles/expirationd.lua",
     }
 }

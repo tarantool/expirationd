@@ -24,7 +24,7 @@ all: test
 # ldoc using tarantool.
 apidoc:
 	ldoc -c $(PROJECT_DIR)/doc/ldoc/config.ld \
-             -d $(PROJECT_DIR)/doc/apidoc/ expirationd.lua
+             -d $(PROJECT_DIR)/doc/apidoc/ expirationd/
 
 check: luacheck
 
@@ -46,12 +46,12 @@ $(LUACOV_STATS): test
 
 coverage: $(LUACOV_STATS)
 	sed -i -e 's@'"$$(realpath .)"'/@@' $(LUACOV_STATS)
-	cd $(PROJECT_DIR) && luacov expirationd.lua
+	cd $(PROJECT_DIR) && luacov expirationd/*.lua
 	grep -A999 '^Summary' $(LUACOV_REPORT)
 
 coveralls: $(LUACOV_STATS)
 	echo "Send code coverage data to the coveralls.io service"
-	luacov-coveralls --include ^expirationd --verbose --repo-token ${GITHUB_TOKEN}
+	luacov-coveralls --root expirationd --include *.lua --verbose --repo-token ${GITHUB_TOKEN}
 
 deps:
 	tarantoolctl rocks install luatest 0.5.7

@@ -9,11 +9,17 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
-- Add versioning support (#136).
-
 ### Changed
 
 ### Fixed
+
+## 1.4.0 - 2023-03-16
+
+The release adds `_VERSION` constant for the module.
+
+### Added
+
+- Add versioning support (#136).
 
 ## 1.3.1 - 2023-01-17
 

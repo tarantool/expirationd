@@ -40,6 +40,10 @@ install -m 0644 cartridge/roles/expirationd.lua %{buildroot}%{_datarootdir}/tara
 
 %changelog
 
+* Thu Mar 16 2023 Oleg Jukovec <oleg.jukovec@tarantool.org> 1.4.0-1
+
+- Add _VERSION constant.
+
 * Fri Jan 17 2023 Oleg Jukovec <oleg.jukovec@tarantool.org> 1.3.1-1
 - Fix check of the Tarantool version in tests to determine a bug in
   the vinyl engine

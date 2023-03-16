@@ -1,3 +1,12 @@
+tarantool-expirationd (1.3.1-1) unstable; urgency=medium
+
+  * Fix check of the Tarantool version in tests to determine a bug in
+    the vinyl engine
+  * Add a way to configure the module using Tarantool Cartridge role
+    configuration
+
+ -- Oleg Jukovec <oleg.jukovec@tarantool.org>  Fri, 17 Jan 2023 12:00:00 +0300
+
 tarantool-expirationd (1.3.0-1) unstable; urgency=medium
 
   * Continue a task from a last tuple

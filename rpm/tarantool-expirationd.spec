@@ -39,15 +39,12 @@ install -m 0644 cartridge/roles/expirationd.lua %{buildroot}%{_datarootdir}/tara
 %license LICENSE
 
 %changelog
-* Thu Aug 11 2022 Oleg Jukovec <oleg.jukovec@tarantool.org> 1.3.0-1
-- Continue a task from a last tuple
-- Decrease tarantool-checks dependency from 3.1 to 2.1
-- Process a task on a writable space by default
-- Wait until a space or an index is created
-- Tarantool Cartridge role
-- Fix build and installation of rpm/deb packages
-- Do not restart work a fiber if an index does not exist
-- expirationd.start() parameter space_id has been renamed to space
+
+* Fri Jan 17 2023 Oleg Jukovec <oleg.jukovec@tarantool.org> 1.3.1-1
+- Fix check of the Tarantool version in tests to determine a bug in
+  the vinyl engine
+- Add a way to configure the module using Tarantool Cartridge role
+  configuration
 
 * Mon Jun 27 2022 Oleg Jukovec <oleg.jukovec@tarantool.org> 1.2.0-1
 - Check types of function arguments with checks module

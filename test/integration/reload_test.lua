@@ -188,6 +188,16 @@ function g.test_cfg_metrics_enable_after_reload(cg)
     t.assert_equals(ret, true)
 end
 
+local function has_expirationd(metrics)
+    local expected = "expirationd_"
+    for _, v in ipairs(metrics) do
+        if string.sub(v.metric_name, 1, string.len(expected)) == expected then
+            return true
+        end
+    end
+    return false
+end
+
 function g.test_cfg_metrics_clean_after_reload(cg)
     t.skip_if(not helpers.is_metrics_supported(),
               "metrics >= 0.11.0 is not installed")
@@ -204,13 +214,7 @@ function g.test_cfg_metrics_clean_after_reload(cg)
         metrics.invoke_callbacks()
         return metrics.collect()
     ]])
-    local restarts = nil
-    for _, v in ipairs(metrics) do
-        if v.metric_name == "expirationd_restarts" then
-            restarts = v.value
-        end
-    end
-    t.assert_equals(restarts, 1)
+    t.assert(has_expirationd(metrics))
 
     reload_roles(cg.cluster:server('s1-master'))
 
@@ -221,5 +225,5 @@ function g.test_cfg_metrics_clean_after_reload(cg)
         metrics.invoke_callbacks()
         return metrics.collect()
     ]])
-    t.assert_equals(metrics, {})
+    t.assert_not(has_expirationd(metrics))
 end

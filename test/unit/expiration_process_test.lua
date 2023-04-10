@@ -28,12 +28,12 @@ g.before_each(function(cg)
     cg.task_name = 'test'
 end)
 
-g.after_each(function(g)
-    if g.task ~= nil then
-        g.task:kill()
+g.after_each(function(cg)
+    if cg.task ~= nil then
+        cg.task:kill()
     end
-    g.space:drop()
-    g.space_archive:drop()
+    cg.space:drop()
+    cg.space_archive:drop()
 end)
 
 -- Check tuple's expiration by timestamp.
@@ -183,7 +183,7 @@ function g.test_check_tuples_not_expired_by_timestamp(cg)
         space:insert({i, tostring(i), time + 2})
     end
 
-    cg.full_scan_counter = 0
+    local full_scan_counter = 0
     cg.task = expirationd.start(task_name, space.id, check_tuple_expire_by_timestamp,
         {
             process_expired_tuple = put_tuple_to_archive,
@@ -192,7 +192,7 @@ function g.test_check_tuples_not_expired_by_timestamp(cg)
                 archive_space_id = space_archive.id
             },
             on_full_scan_complete = function()
-                cg.full_scan_counter = cg.full_scan_counter + 1
+                full_scan_counter = full_scan_counter + 1
             end
         })
     local task = cg.task
@@ -201,7 +201,7 @@ function g.test_check_tuples_not_expired_by_timestamp(cg)
     -- Сheck that after the expiration starts,
     -- no tuples will be archived since the timestamp has an advantage of 2 seconds.
     helpers.retrying({}, function()
-        t.assert(cg.full_scan_counter > 0)
+        t.assert(full_scan_counter > 0)
         t.assert_equals(task.expired_tuples_count, 0)
         t.assert_equals(space_archive:count(), 0)
     end)

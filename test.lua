@@ -382,7 +382,7 @@ test:test("restart test", function(test)
         }
     )
 
-    local fiber_cnt = len(fiber.info())
+    local old_fiber_cnt = len(fiber.info())
     local old_expd = expirationd
 
     local chan = fiber.channel(1)
@@ -408,7 +408,9 @@ test:test("restart test", function(test)
     test:is(space:count{}, 0, 'all tuples are expired')
 
     task1:statistics()
-    test:is(fiber_cnt, len(fiber.info()), "check for absence of ghost fibers")
+    local fiber_cnt = len(fiber.info())
+    -- After update the fiber named "main" may disappear.
+    test:ok(fiber_cnt <= old_fiber_cnt and old_fiber_cnt <= fiber_cnt + 1, "check for absence of ghost fibers")
 
     expirationd.kill("test1")
     expirationd.kill("test2")

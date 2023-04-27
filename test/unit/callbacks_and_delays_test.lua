@@ -22,6 +22,13 @@ end)
 
 g.before_each(function(cg)
     cg.task_name = 'test'
+
+    local space = cg.space
+    local total = 10
+    for i = 1, total do
+        space:insert({i, tostring(i)})
+    end
+    t.assert_equals(space:count(), total)
 end)
 
 g.after_each(function(cg)
@@ -34,12 +41,6 @@ end)
 function g.test_delays_and_scan_callbacks(cg)
     local space = cg.space
     local task_name = cg.task_name
-
-    local total = 10
-    for i = 1, total do
-        space:insert({i, tostring(i)})
-    end
-    t.assert_equals(space:count{}, total)
 
     -- To check all delays (iteration and full scan), two full scan
     -- iterations will be performed.
@@ -105,5 +106,44 @@ function g.test_delays_and_scan_callbacks(cg)
     t.assert(check_full_scan_delay)
     t.assert(check_iteration_delay)
     t.assert_equals(full_scan_success_counter, 2)
-    t.assert_equals(space:count{}, 0)
+    t.assert_equals(space:count(), 0)
+end
+
+function g.test_error_callback(cg)
+    local space = cg.space
+    local task_name = cg.task_name
+
+    local cond = fiber.cond()
+
+    local error_cb_called = false
+    local complete_cb_called = false
+    local error_message = 'The error is occurred'
+
+    local check_error_cb_called = function(_, err)
+        if err:find(error_message) then
+            error_cb_called = true
+        end
+    end
+
+    local check_complete_cb_called = function()
+        complete_cb_called = true
+        cond:signal()
+    end
+
+    cg.task = expirationd.start(task_name, space.id,
+        helpers.get_error_function(error_message),
+        {
+            -- The callbacks can be called multiple times because guardian_loop
+            -- will restart the task.
+            on_full_scan_error = check_error_cb_called,
+            on_full_scan_complete = check_complete_cb_called
+        }
+    )
+
+    cond:wait()
+
+    -- The 'error' callback has been invoked.
+    t.assert(error_cb_called)
+    -- The 'complete' callback has been invoked.
+    t.assert(complete_cb_called)
 end

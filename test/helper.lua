@@ -291,4 +291,10 @@ function helpers.error_function()
     error("error function call")
 end
 
+function helpers.get_error_function(error_msg)
+    return function()
+        error(error_msg)
+    end
+end
+
 return helpers

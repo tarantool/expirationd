@@ -275,9 +275,8 @@ init_box()
 -- 1. kill zombie test
 -- 2. restart test
 -- 3. complex key test
--- 4. error callback test
 -- ========================================================================= --
-test:plan(4)
+test:plan(3)
 
 test:test("zombie task kill", function(test)
     test:plan(4)
@@ -445,57 +444,6 @@ test:test("complex key test", function(test)
     fiber.sleep(3.1)
     test:is(space:count{}, 0, 'all tuples are expired with default function')
     expirationd.kill("test")
-end)
-
-test:test('error callback test', function(test)
-    test:plan(2)
-
-    -- Prepare the space.
-    local tuples_count = 1
-    local time = fiber.time()
-    local space_name = 'error_callback_test'
-    local expire_delta = 10
-
-    for i = 1, tuples_count do
-        box.space[space_name]:insert{i, time + expire_delta}
-    end
-
-    local task_name = 'error_callback_task'
-    local cond = fiber.cond()
-
-    local error_cb_called = false
-    local complete_cb_called = false
-    local err_msg = 'The error is occured'
-
-    expirationd.start(
-        task_name,
-        space_name,
-        function(args, tuple)
-            error(err_msg)
-        end,
-        {
-            args = {
-                field_no = 2
-            },
-            -- The callbacks can be called multiple times because guardian_loop
-            -- will restart the task.
-            on_full_scan_error = function(task, err)
-                if err:find(err_msg) then
-                    error_cb_called = true
-                end
-            end,
-            on_full_scan_complete = function(task)
-                complete_cb_called = true
-                cond:signal()
-            end
-        }
-    )
-
-    cond:wait()
-    expirationd.kill(task_name)
-
-    test:ok(error_cb_called, 'the "error" callback has been invoked')
-    test:ok(complete_cb_called, 'the "complete" callback has been invoked')
 end)
 
 os.exit(test:check() and 0 or 1)

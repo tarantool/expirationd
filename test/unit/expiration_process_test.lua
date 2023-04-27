@@ -224,7 +224,7 @@ function g.test_default_tuple_drop_function(cg)
         space:insert({i, tostring(i), time})
     end
     -- Tuples are in space.
-    t.assert_equals(space:count{}, total)
+    t.assert_equals(space:count(), total)
 
     cg.task = expirationd.start(task_name, space.id, check_tuple_expire_by_timestamp,
         {
@@ -238,7 +238,7 @@ function g.test_default_tuple_drop_function(cg)
     helpers.retrying({}, function()
         t.assert_equals(task.expired_tuples_count, total)
         t.assert_equals(space_archive:count(), 0)
-        t.assert_equals(space:count{}, 0)
+        t.assert_equals(space:count(), 0)
     end)
 end
 
@@ -252,7 +252,7 @@ function g.test_tuples_per_iteration(cg)
     for i = 1, total do
         space:insert({i, tostring(i), time})
     end
-    t.assert_equals(space:count{}, total)
+    t.assert_equals(space:count(), total)
 
     cg.task = expirationd.start(task_name, space.id, check_tuple_expire_by_timestamp,
         {

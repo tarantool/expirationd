@@ -8,4 +8,5 @@ luacov.report.out
 tags
 .rocks
 doc/apidoc/
+.idea
 *.swp

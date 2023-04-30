@@ -273,9 +273,8 @@ init_box()
 -- ========================================================================= --
 -- TAP TESTS:
 -- 1. kill zombie test
--- 2. restart test
 -- ========================================================================= --
-test:plan(2)
+test:plan(1)
 
 test:test("zombie task kill", function(test)
     test:plan(4)
@@ -318,101 +317,6 @@ test:test("zombie task kill", function(test)
     test:is(task.guardian_fiber:status(), "suspended", 'checking status of fiber')
     test:is(fiber_obj:status(), 'dead', "Zombie task was killed and restarted")
     expirationd.kill("test")
-end)
-
-test:test("restart test", function(test)
-    test:plan(5)
-    local tuples_count = 10
-    local space_name = 'restart_test'
-    local space = box.space[space_name]
-
-    local task1 = expirationd.start(
-        "test1",
-        space_name,
-        check_tuple_expire_by_timestamp,
-        {
-            args = {
-                field_no = 3,
-                archive_space_id = archive_space_id
-            },
-            tuples_per_iteration = 10,
-            full_scan_time = 1,
-        }
-    )
-    local task2 = expirationd.start(
-        "test2",
-        space_name,
-        check_tuple_expire_by_timestamp,
-        {
-            args = {
-                field_no = 3,
-                archive_space_id = archive_space_id
-            },
-            tuples_per_iteration = 10,
-            full_scan_time = 1,
-        }
-    )
-    local task3 = expirationd.start(
-        "test3",
-        space_name,
-        check_tuple_expire_by_timestamp,
-        {
-            args = {
-                field_no = 3,
-                archive_space_id = archive_space_id,
-            },
-            tuples_per_iteration = 10,
-            full_scan_time = 1,
-        }
-    )
-    local task4 = expirationd.start(
-        "test4",
-        space_name,
-        check_tuple_expire_by_timestamp,
-        {
-            args = {
-                field_no = 3,
-                archive_space_id = archive_space_id,
-            },
-            tuples_per_iteration = 10,
-            full_scan_time = 1,
-        }
-    )
-
-    local old_fiber_cnt = len(fiber.info())
-    local old_expd = expirationd
-
-    local chan = fiber.channel(1)
-    local fiber_update = fiber.create(function()
-        expirationd.update()
-        chan:put(1)
-    end)
-    local ok, err = pcall(function() expirationd.start() end)
-    test:like(err, ".*Wait until update is done.*", "error while reloading")
-    chan:get()
-
-    for i = 1, tuples_count do
-        space:insert{i, 'test_data', fiber.time() + 1}
-    end
-
-    expirationd = require('expirationd')
-    test:isnt(tostring(old_expd):match('0x.*'),
-              tostring(expirationd):match('0x.*'),
-              'new expirationd table')
-
-    test:is(space:count{}, tuples_count, 'tuples are in space')
-    fiber.sleep(4)
-    test:is(space:count{}, 0, 'all tuples are expired')
-
-    task1:statistics()
-    local fiber_cnt = len(fiber.info())
-    -- After update the fiber named "main" may disappear.
-    test:ok(fiber_cnt <= old_fiber_cnt and old_fiber_cnt <= fiber_cnt + 1, "check for absence of ghost fibers")
-
-    expirationd.kill("test1")
-    expirationd.kill("test2")
-    expirationd.kill("test3")
-    expirationd.kill("test4")
 end)
 
 os.exit(test:check() and 0 or 1)

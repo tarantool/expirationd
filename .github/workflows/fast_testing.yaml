@@ -25,8 +25,8 @@ jobs:
           - '2.7'
           - '2.8'
           - '2.10'
-          - 'debug-master'
         cartridge-version:
+          - ''
           - '2.7.4'
         metrics-version:
           - ''
@@ -39,6 +39,10 @@ jobs:
             cartridge-version: '2.7.4'
             metrics-version: '0.13.0'
             coveralls: true
+          - tarantool: 'debug-master'
+            cartridge-version: ''
+            metrics-version: '0.13.0'
+            coveralls: false
 
     env:
       TNT_DEBUG_PATH: /home/runner/tnt-debug
@@ -112,11 +116,15 @@ jobs:
         run: make deps
         if: steps.cache-rocks.outputs.cache-hit != 'true'
 
-      - name: Install cartridge and metrics
+      - name: Install metrics
         if: matrix.metrics-version != ''
         run: |
-          tarantoolctl rocks install cartridge ${{ matrix.cartridge-version }}
           tarantoolctl rocks install metrics ${{ matrix.metrics-version }}
+
+      - name: Install cartridge
+        if: matrix.cartridge-version != ''
+        run: |
+          tarantoolctl rocks install cartridge ${{ matrix.cartridge-version }}
 
       - run: echo $PWD/.rocks/bin >> $GITHUB_PATH
 

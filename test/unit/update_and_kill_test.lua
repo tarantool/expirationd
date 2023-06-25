@@ -94,3 +94,37 @@ function g.test_expirationd_update(cg)
         end)
     end
 end
+
+function g.test_zombie_task_kill(cg)
+    local space = cg.first_space
+    local task_name = 'test'
+
+    local one_hour = 3600
+    local task = expirationd.start(task_name, space.id, helpers.is_expired_true,
+        {
+            full_scan_delay = one_hour,
+        }
+    )
+
+    local first_task_fiber
+    helpers.retrying({}, function()
+        first_task_fiber = task.worker_fiber
+        t.assert_equals(first_task_fiber:status(), "suspended")
+    end)
+    local total = 10
+    for i = 1, total do
+        space:insert({ i, tostring(i) })
+    end
+    t.assert_equals(space:count(), total)
+
+    -- Run again and check - it must kill first task.
+    task = expirationd.start(task_name, space.id, helpers.is_expired_true)
+
+    t.assert_equals(task.restarts, 1)
+    -- Check is first fiber killed.
+    t.assert_equals(first_task_fiber:status(), "dead")
+
+    helpers.retrying({}, function()
+        t.assert_equals(space:count(), 0)
+    end)
+end

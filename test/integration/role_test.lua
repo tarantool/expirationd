@@ -112,6 +112,51 @@ function g.test_start_task_from_config(cg)
     end)
 end
 
+-- init/stop/validate_config/apply_config well tested in test/unit/role_test.lua
+-- here we just ensure that it works as expected
+function g.test_start_task_from_config_with_functions_from_box_func(cg)
+    t.skip_if(_TARANTOOL < '2', 'Restricted support in Tarantool 1.10')
+    t.assert_equals(3, cg.cluster:server('s1-master').net_box:eval([[
+        box.schema.func.create('forever_true_test', {
+            body = "function(...) return true end",
+            if_not_exists = true
+        })
+        box.space.customers:insert({1})
+        box.space.customers:insert({2})
+        box.space.customers:insert({3})
+        return #box.space.customers:select({}, {limit = 10})
+    ]]))
+    cg.cluster.main_server:upload_config({
+        expirationd = {
+            test_task = {
+                space = "customers",
+                is_expired = "forever_true_test",
+                is_master_only = true,
+            }
+        },
+    })
+    t.assert_equals(cg.cluster:server('s1-master').net_box:eval([[
+        local cartridge = require("cartridge")
+        return #cartridge.service_get("expirationd").tasks()
+    ]]), 1)
+    helpers.retrying({}, function()
+        t.assert_equals(cg.cluster:server('s1-master').net_box:eval([[
+            return #box.space.customers:select({}, {limit = 10})
+        ]]), 0)
+    end)
+
+    -- is_master == false
+    t.assert_equals(cg.cluster:server("s1-slave").net_box:eval([[
+        local cartridge = require("cartridge")
+        return #cartridge.service_get("expirationd").tasks()
+    ]]), 0)
+    helpers.retrying({}, function()
+        t.assert_equals(cg.cluster:server('s1-slave').net_box:eval([[
+            return #box.space.customers:select({}, {limit = 10})
+        ]]), 0)
+    end)
+end
+
 function g.test_continue_after_hotreload(cg)
     t.assert_equals(10, cg.cluster:server('s1-master').net_box:eval([[
         for i = 1,10 do

@@ -2,15 +2,40 @@ local expirationd = require("expirationd")
 local role_name = "expirationd"
 local started = require("cartridge.vars").new(role_name)
 
+local function dumb_fn() end
+
 local function load_function(func_name)
     if func_name == nil or type(func_name) ~= 'string' then
         return nil
     end
 
     local func = rawget(_G, func_name)
-    if func == nil or type(func) ~= 'function' then
+    if func == nil then
+        if type(box.cfg) == 'function' then
+            -- After restart `validate_config` sometimes is run before box.cfg
+            -- call and it leads to error like `Please call box.cfg first` and
+            -- at this moment we are not able to check real availability of
+            -- functions in box.func. If we return nil, we fail configration
+            -- but it is not an error actually, because we cannot do any
+            -- checks.  Thus we decided to return dumb_fn to avoid
+            -- misconfiguration at this stage and in hope that `apply_config`
+            -- will do real check.
+            -- P.S. Of course it is a bad solution, but...
+            return dumb_fn
+        end
+        if not box.schema.func.exists(func_name) then
+            return nil
+        end
+
+        return function(...)
+            return box.func[func_name]:call({...})
+        end
+    end
+
+    if type(func) ~= 'function' then
         return nil
     end
+
     return func
 end
 
@@ -19,7 +44,7 @@ local function get_param(param_name, value, types)
         b = {type = "boolean", err = "a boolean"},
         n = {type = "number", err = "a number"},
         s = {type = "string", err = "a string"},
-        f = {type = "string", transform = load_function, err = "a function name in _G"},
+        f = {type = "string", transform = load_function, err = "a function name in _G or in box.func"},
         t = {type = "table", err = "a table"},
         any = {err = "any type"},
     }

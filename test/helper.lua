@@ -297,4 +297,11 @@ function helpers.get_error_function(error_msg)
     end
 end
 
+function helpers.create_persistent_function(name, body)
+    box.schema.func.create(name, {
+        body = body or "function(...) return true end",
+        if_not_exists = true
+    })
+end
+
 return helpers

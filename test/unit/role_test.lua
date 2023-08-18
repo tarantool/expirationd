@@ -6,6 +6,9 @@ local g = t.group('expirationd_role')
 local is_cartridge_roles, _ = pcall(require, 'cartridge.roles')
 
 local always_true_func_name = "expirationd_test_always_true"
+local always_true_func_name_in_box_func = 'expirationd_test_always_true_bf'
+local always_true_func_name_with_side_effect = 'expirationd_test_always_true_se'
+local always_true_func_name_with_side_effect_flag = 'expirationd_test_always_true_se_called'
 local iterate_pairs_func_name = "expirationd_test_pairs"
 
 g.before_all(function()
@@ -25,8 +28,21 @@ g.before_each(function()
 
     g.is_metrics_supported = helpers.is_metrics_supported()
 
+    if _TARANTOOL >= '2' then
+        helpers.create_persistent_function(always_true_func_name_in_box_func)
+        helpers.create_persistent_function(always_true_func_name_with_side_effect, [[
+            function(...)
+                return false
+            end
+        ]])
+    end
+
+    rawset(_G, always_true_func_name_with_side_effect_flag, false)
     rawset(_G, always_true_func_name, function() return true end)
     rawset(_G, iterate_pairs_func_name, function() return pairs({}) end)
+    rawset(_G, always_true_func_name_with_side_effect, function()
+        rawset(_G, always_true_func_name_with_side_effect_flag, true)
+    end)
 end)
 
 g.after_each(function(g)
@@ -457,7 +473,7 @@ local options_cases = {
     },
     start_key_invalid = {
         ok = false,
-        err = "expirationd: options.start_key must be a function name in _G or a table",
+        err = "expirationd: options.start_key must be a function name in _G or in box.func or a table",
         options = {start_key = "any string"},
     },
     tuples_per_iteration_number = {
@@ -605,6 +621,41 @@ function g.test_apply_config_start_cfg_task(cg)
 
     t.assert_equals(#cg.role.tasks(), 1)
     t.assert_not_equals(cg.role.task(task_name), nil)
+end
+
+function g.test_apply_config_start_cfg_task_with_box_func(cg)
+    t.skip_if(_TARANTOOL < '2', 'Restricted support in Tarantool 1.10')
+    local task_name = 'cfg'
+    cg.role.apply_config({
+        expirationd = {
+            [task_name] = {
+                space = g.space.id,
+                is_expired = always_true_func_name_in_box_func
+            }
+        }
+    }, { is_master = false })
+
+    t.assert_equals(#cg.role.tasks(), 1)
+    t.assert_not_equals(cg.role.task(task_name), nil)
+end
+
+function g.test_apply_config_start_cfg_task_with_correct_order(cg)
+    t.skip_if(_TARANTOOL < '2', 'Restricted support in Tarantool 1.10')
+    t.assert_not(rawget(_G, always_true_func_name_with_side_effect_flag))
+    local task_name = 'cfg'
+    cg.space:insert({1, "1"})
+    cg.role.apply_config({
+        expirationd = {
+            [task_name] = {
+                space = g.space.id,
+                is_expired = always_true_func_name_with_side_effect
+            }
+        }
+    }, { is_master = false })
+
+    t.assert_equals(#cg.role.tasks(), 1)
+    t.assert_not_equals(cg.role.task(task_name), nil)
+    t.assert(rawget(_G, always_true_func_name_with_side_effect_flag))
 end
 
 function g.test_apply_config_start_task_with_all_options(cg)

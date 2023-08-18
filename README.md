@@ -169,6 +169,16 @@ package with features:
   only affects the current node and does not update values in the clusterwide
   configuration. The manual change will be overwritten by a next
   `apply_config` call.
+* You can use persistent functions (i.e. created by `box.schema.func.create`).
+  When configuring, role tries firstly get function from global namespace
+  (`_G`) and if function was not found then role tries search in `box.func` for
+  function with the same name.
+
+  Be careful! At the moment of validating and applying config of expirationd
+  role all persistent functions must be created before, so to configure
+  cartridge application correctly you must do it in two steps: at the first
+  step you have to confgure migrations with creating persistent functions and
+  run them, at the second one put expirationd config.
 * The role stops all expirationd tasks on an instance on the role termination.
 * The role can automatically start or kill old tasks from the role
   configuration:

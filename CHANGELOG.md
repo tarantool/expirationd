@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
+- Added ability to use persistent functions in `box.func` with cartridge. User can configure
+  the role with persistent functions as callback for task.
+
 ### Changed
 
 ### Fixed

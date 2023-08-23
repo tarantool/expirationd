@@ -1,3 +1,9 @@
+tarantool-expirationd (1.5.0-1) unstable; urgency=medium
+
+  * Add an ability to use persistent functions in `box.func` with cartridge.
+
+ -- Oleg Jukovec <oleg.jukovec@tarantool.org>  Wed, 23 Aug 2023 12:00:00 +0300
+
 tarantool-expirationd (1.4.0-1) unstable; urgency=medium
 
   * Add _VERSION constant

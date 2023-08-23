@@ -9,12 +9,20 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
-- Added ability to use persistent functions in `box.func` with cartridge. User can configure
-  the role with persistent functions as callback for task.
-
 ### Changed
 
 ### Fixed
+
+## 1.5.0 - 2023-08-23
+
+The release adds an ability to use functions from `box.func` with the Tarantool
+Cartridge role.
+
+### Added
+
+- An ability to use persistent functions in `box.func` with cartridge. A user
+  can configure the role with persistent functions as callback for a
+  task (#153).
 
 ## 1.4.0 - 2023-03-16
 

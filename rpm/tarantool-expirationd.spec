@@ -40,6 +40,10 @@ install -m 0644 cartridge/roles/expirationd.lua %{buildroot}%{_datarootdir}/tara
 
 %changelog
 
+* Wed Aug 23 2023 Oleg Jukovec <oleg.jukovec@tarantool.org> 1.5.0-1
+
+- Add an ability to use persistent functions in `box.func` with cartridge.
+
 * Thu Mar 16 2023 Oleg Jukovec <oleg.jukovec@tarantool.org> 1.4.0-1
 
 - Add _VERSION constant.

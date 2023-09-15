@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Changed
 
+- Updated the 'space_index_test.lua' to drop and recreate the test space
+  atomically. This prevents the space access failure in the expirationd
+  task fiber if the `space:drop` function is transactional (#157).
+
 ### Fixed
 
 ## 1.5.0 - 2023-08-23

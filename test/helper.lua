@@ -287,6 +287,19 @@ function helpers.memtx_func_index_is_supported()
         (major >= 3)
 end
 
+function helpers.single_yield_transactional_ddl_is_supported()
+    local major, minor, patch = helpers.tarantool_version()
+
+    -- The issue: https://github.com/tarantool/tarantool/issues/4083
+    --
+    -- A limited transactional DDL support has been introduced in 2.2.1, it
+    -- allows to wrap a single-yield DDL statement set into a transaction if
+    -- the yielding statement is the first in the transaction.
+    return (major == 2 and minor == 2 and patch >= 1) or
+        (major == 2 and minor >= 3) or
+        (major >= 3)
+end
+
 function helpers.error_function()
     error("error function call")
 end

@@ -348,8 +348,38 @@ function g.test_not_stop_after_drop_and_recreate(cg)
     end)
 
     helpers.iteration_result = {}
+
+    -- This should be atomic to prevent yielding into the expirationd task with
+    -- partially applied changes (when the old space is dropped but the new one
+    -- is not created yet).
+    --
+    -- The space drop is transactional if the tarantool/taratool#8751 is merged,
+    -- so it yields on commit. After that point the space is dropped.
+    --
+    -- The expirationd task yields on each tuple drop if the task does not have
+    -- the atomic_iteration option set.
+    --
+    -- So without this begin/commit guard the following situation is possible:
+    -- 1. The expirationd task has started.
+    -- 2. The task removes one tuple, which causes yield.
+    -- 3. The current fiber drops the space and yields to the expirationd task.
+    -- 4. The expirationd task finishes the iteration and checks if the space
+    --    is vinyl to update the vinyl_assumed_space_len, but the space does
+    --    not exist anymore, so it fails causing the task restart.
+
+    -- Since the test is also executed against old versions of Tarantool, let's
+    -- only wrap the space drop and recreation into transaction on the versions
+    -- that support at least single-yield transactional DDL.
+    if helpers.single_yield_transactional_ddl_is_supported() then
+        box.begin()
+    end
+
     cg.case_space:drop()
     create_case_space(cg, space_name)
+
+    if helpers.single_yield_transactional_ddl_is_supported() then
+        box.commit()
+    end
 
     helpers.retrying({}, function()
         t.assert_equals(helpers.iteration_result, {{2, "2"}})

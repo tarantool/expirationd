@@ -39,10 +39,10 @@ Table below may help you to choose a proper module for your requirements:
 
 You can:
 
-* Install the module using `tarantoolctl`:
+* Install the module using [tt](https://github.com/tarantool/tt):
 
   ``` bash
-  tarantoolctl rocks install expirationd
+  tt rocks install expirationd
   ```
 
 * Install the module using LuaRocks:

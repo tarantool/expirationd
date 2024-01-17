@@ -95,6 +95,12 @@ jobs:
           path: .rocks/
           key: cache-rocks-${{ matrix.tarantool }}-01
 
+      - name: Setup tt
+        run: |
+          curl -L https://tarantool.io/release/2/installer.sh | sudo bash
+          sudo apt install -y tt
+          tt version
+
       - name: Install requirements
         run: make deps
         if: steps.cache-rocks.outputs.cache-hit != 'true'

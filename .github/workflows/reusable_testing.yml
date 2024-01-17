@@ -28,6 +28,12 @@ jobs:
         # dependencies when migrating to other OS version.
         run: sudo dpkg -i tarantool_*.deb tarantool-common_*.deb tarantool-dev_*.deb
 
+      - name: Setup tt
+        run: |
+          curl -L https://tarantool.io/release/2/installer.sh | sudo bash
+          sudo apt install -y tt
+          tt version
+
       - run: make deps
       - run: echo $PWD/.rocks/bin >> $GITHUB_PATH
       - run: make test

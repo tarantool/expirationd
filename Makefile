@@ -39,13 +39,13 @@ coveralls: $(LUACOV_STATS)
 	luacov-coveralls --include ^expirationd --verbose --repo-token ${GITHUB_TOKEN}
 
 deps:
-	tarantoolctl rocks install luatest 0.5.7
-	tarantoolctl rocks install luacheck 0.26.0
-	tarantoolctl rocks install luacov 0.13.0-1
-	tarantoolctl rocks install ldoc --server=https://tarantool.github.io/LDoc/
-	tarantoolctl rocks install luacov-coveralls 0.2.3-1 --server=http://luarocks.org
-	tarantoolctl rocks make
+	tt rocks install luatest 0.5.7
+	tt rocks install luacheck 0.26.0
+	tt rocks install luacov 0.13.0-1
+	tt rocks install ldoc --server=https://tarantool.github.io/LDoc/
+	tt rocks install luacov-coveralls 0.2.3-1 --server=http://luarocks.org
+	tt rocks make
 
 deps-full: deps
-	tarantoolctl rocks install cartridge 2.7.4
-	tarantoolctl rocks install metrics 0.13.0
+	tt rocks install cartridge 2.7.4
+	tt rocks install metrics 0.13.0

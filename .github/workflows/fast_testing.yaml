@@ -112,6 +112,12 @@ jobs:
             ${{ matrix.cartridge-version }}-\
             ${{ matrix.metrics-version }}"
 
+      - name: Setup tt
+        run: |
+          curl -L https://tarantool.io/release/2/installer.sh | sudo bash
+          sudo apt install -y tt
+          tt version
+
       - name: Install requirements
         run: make deps
         if: steps.cache-rocks.outputs.cache-hit != 'true'
@@ -119,12 +125,12 @@ jobs:
       - name: Install metrics
         if: matrix.metrics-version != ''
         run: |
-          tarantoolctl rocks install metrics ${{ matrix.metrics-version }}
+          tt rocks install metrics ${{ matrix.metrics-version }}
 
       - name: Install cartridge
         if: matrix.cartridge-version != ''
         run: |
-          tarantoolctl rocks install cartridge ${{ matrix.cartridge-version }}
+          tt rocks install cartridge ${{ matrix.cartridge-version }}
 
       - run: echo $PWD/.rocks/bin >> $GITHUB_PATH
 

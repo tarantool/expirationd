@@ -20,6 +20,7 @@ build = {
         ["expirationd"] = "expirationd/init.lua",
         ["expirationd.version"] = "expirationd/version.lua",
         ["cartridge.roles.expirationd"] = "cartridge/roles/expirationd.lua",
+        ["roles.expirationd"] = "roles/expirationd.lua"
     }
 }
 -- vim: syntax=lua

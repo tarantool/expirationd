@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
+- Tarantool 3.0 role for expirationd (#160).
+
 ### Changed
 
 - Updated the 'space_index_test.lua' to drop and recreate the test space

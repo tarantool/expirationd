@@ -2,7 +2,7 @@ local expirationd = require("expirationd")
 local fiber = require("fiber")
 local t = require("luatest")
 local helpers = require("test.helper")
-local g = t.group('expirationd_role')
+local g = t.group('cartridge_expirationd_role')
 local is_cartridge_roles, _ = pcall(require, 'cartridge.roles')
 
 local always_true_func_name = "expirationd_test_always_true"

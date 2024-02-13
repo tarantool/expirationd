@@ -193,7 +193,7 @@ package with features:
       is_master_only: true
       options:
         args:
-        - any
+          - any
         atomic_iteration: false
         force: false
         force_allow_functional_index: true
@@ -232,3 +232,79 @@ package with features:
       -- code of the function
   end)
   ```
+
+## Tarantool 3.0 role
+
+`roles.expirationd` is a Tarantool 3.0 role for the expirationd
+package with the following features:
+
+* You can configure the expirationd role with `cfg` entry (check example).
+  Cluster configuration allows to set the same parameters as
+  in [expirationd.cfg()](https://tarantool.github.io/expirationd/#cfg)
+* You can use persistent functions (i.e. created by `box.schema.func.create`)
+  for expirationd `cfg` entries.
+  When configuring, role tries first to get a function from global namespace (`_G`)
+  and if the function was not found then role tries to search in `box.func`
+  for a function with the same name.
+  If some functions from config are missing,
+  expirationd will wait for their creation and start tasks when all of them are found.
+  You can check logs to see what functions are missing.
+* The role stops all expirationd tasks on an instance on the role termination.
+* The role can automatically start or kill old tasks from the role
+  configuration.
+
+  ```yaml
+  roles: [roles.expirationd]
+    roles_cfg:
+      roles.expirationd:
+        cfg:
+          metrics: true
+        task_name1:
+          space: users
+          is_expired: is_expired_func_name
+          is_master_only: true
+          options:
+            args:
+              - any
+            atomic_iteration: false
+            force: false
+            force_allow_functional_index: true
+            full_scan_delay: 1
+            full_scan_time: 1
+            index: 0
+            iterate_with: iterate_with_func_name_in__G
+            iteration_delay: 1
+            iterator_type: ALL
+            on_full_scan_complete: on_full_scan_complete_func_name_in__G
+            on_full_scan_error: on_full_scan_error_func_name_in__G
+            on_full_scan_start: on_full_scan_start_func_name_in__G
+            on_full_scan_success: on_full_scan_success_func_name_in__G
+            process_expired_tuple: process_expired_tuple_func_name_in__G
+            process_while: process_while_func_name_in__G
+            start_key:
+              - 1
+            tuples_per_iteration: 100
+            vinyl_assumed_space_len: 100
+            vinyl_assumed_space_len_factor: 1
+  ```
+
+  [expirationd.start()](https://tarantool.github.io/expirationd/#start) has
+  the same parameters with the same meaning except for the additional optional
+  param `is_master_only`. If `true`, the task should run only on a master
+  instance. By default, the value is `false`.
+
+  You need to be careful with function parameters. Task will not start until it
+  finds all functions from config. You can define them in user code:
+
+  ```Lua
+  box.schema.func.create('is_expired_func_name', {
+      body = "function(...) return true end",
+      if_not_exists = true
+  })
+
+  -- Or you could define a global variable.
+  rawset(_G, "process_while_func_name_in__G", function(...)
+      return true
+  end)
+  ```
+

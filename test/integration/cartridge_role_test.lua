@@ -1,7 +1,7 @@
 local fio = require('fio')
 local t = require('luatest')
 local helpers = require('test.helper')
-local g = t.group('expirationd_intergration_role')
+local g = t.group('cartridge_expirationd_intergration_role')
 local is_cartridge_helpers, cartridge_helpers = pcall(require, 'cartridge.test-helpers')
 
 g.before_all(function(cg)

@@ -30,10 +30,13 @@ install -d %{buildroot}%{_datarootdir}/tarantool/expirationd/
 install -m 0644 expirationd/* %{buildroot}%{_datarootdir}/tarantool/expirationd/
 install -d %{buildroot}%{_datarootdir}/tarantool/cartridge/roles/
 install -m 0644 cartridge/roles/expirationd.lua %{buildroot}%{_datarootdir}/tarantool/cartridge/roles/expirationd.lua
+install -d %{buildroot}%{_datarootdir}/tarantool/roles/
+install -m 0644 roles/expirationd.lua %{buildroot}%{_datarootdir}/tarantool/roles/expirationd.lua
 
 %files
 %{_datarootdir}/tarantool/expirationd/
 %{_datarootdir}/tarantool/cartridge
+%{_datarootdir}/tarantool/roles
 %doc README.md
 %{!?_licensedir:%global license %doc}
 %license LICENSE

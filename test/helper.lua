@@ -300,6 +300,11 @@ function helpers.single_yield_transactional_ddl_is_supported()
         (major >= 3)
 end
 
+function helpers.tarantool_role_is_supported()
+    local major, _, _ = helpers.tarantool_version()
+    return major >= 3
+end
+
 function helpers.error_function()
     error("error function call")
 end
@@ -316,5 +321,12 @@ function helpers.create_persistent_function(name, body)
         if_not_exists = true
     })
 end
+
+local root = fio.dirname(fio.dirname(fio.abspath(package.search('test.helper'))))
+
+helpers.lua_path = root .. '/?.lua;' ..
+    root .. '/?/init.lua;' ..
+    root .. '/.rocks/share/tarantool/?.lua;' ..
+    root .. '/.rocks/share/tarantool/?/init.lua'
 
 return helpers

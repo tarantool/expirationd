@@ -16,6 +16,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Updated the 'space_index_test.lua' to drop and recreate the test space
   atomically. This prevents the space access failure in the expirationd
   task fiber if the `space:drop` function is transactional (#157).
+- Updated version of `luatest` in `make deps` to 1.0.1 to support tarantool 3.0
+  role tests (#160).
 
 ### Fixed
 

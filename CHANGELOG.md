@@ -9,17 +9,25 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
-- Tarantool 3.0 role for expirationd (#160).
+### Changed
+
+### Fixed
+
+## 1.6.0 - 2024-03-25
+
+The release introduces a role for Tarantool 3.0.
+
+### Added
+
+- Tarantool 3.0 role (#160).
 
 ### Changed
 
 - Updated the 'space_index_test.lua' to drop and recreate the test space
   atomically. This prevents the space access failure in the expirationd
   task fiber if the `space:drop` function is transactional (#157).
-- Updated version of `luatest` in `make deps` to 1.0.1 to support tarantool 3.0
+- Updated version of `luatest` in `make deps` to 1.0.1 to support Tarantool 3.0
   role tests (#160).
-
-### Fixed
 
 ## 1.5.0 - 2023-08-23
 

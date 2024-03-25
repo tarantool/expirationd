@@ -1,4 +1,4 @@
-[![Run tests](https://github.com/tarantool/expirationd/actions/workflows/test_on_push.yaml/badge.svg)](https://github.com/tarantool/expirationd/actions/workflows/test_on_push.yaml)
+[![Run tests](https://github.com/tarantool/expirationd/actions/workflows/fast_testing.yaml/badge.svg)](https://github.com/tarantool/expirationd/actions/workflows/fast_testing.yaml)
 <a href='https://coveralls.io/github/tarantool/expirationd?branch=master'>
 <img src='https://coveralls.io/repos/github/tarantool/expirationd/badge.svg?branch=master' alt='Coverage Status' />
 </a>

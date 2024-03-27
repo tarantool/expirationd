@@ -255,37 +255,37 @@ package with the following features:
 
   ```yaml
   roles: [roles.expirationd]
-    roles_cfg:
-      roles.expirationd:
-        cfg:
-          metrics: true
-        task_name1:
-          space: users
-          is_expired: is_expired_func_name
-          is_master_only: true
-          options:
-            args:
-              - any
-            atomic_iteration: false
-            force: false
-            force_allow_functional_index: true
-            full_scan_delay: 1
-            full_scan_time: 1
-            index: 0
-            iterate_with: iterate_with_func_name_in__G
-            iteration_delay: 1
-            iterator_type: ALL
-            on_full_scan_complete: on_full_scan_complete_func_name_in__G
-            on_full_scan_error: on_full_scan_error_func_name_in__G
-            on_full_scan_start: on_full_scan_start_func_name_in__G
-            on_full_scan_success: on_full_scan_success_func_name_in__G
-            process_expired_tuple: process_expired_tuple_func_name_in__G
-            process_while: process_while_func_name_in__G
-            start_key:
-              - 1
-            tuples_per_iteration: 100
-            vinyl_assumed_space_len: 100
-            vinyl_assumed_space_len_factor: 1
+  roles_cfg:
+    roles.expirationd:
+      cfg:
+        metrics: true
+      task_name1:
+        space: users
+        is_expired: is_expired_func_name
+        is_master_only: true
+        options:
+          args:
+            - any
+          atomic_iteration: false
+          force: false
+          force_allow_functional_index: true
+          full_scan_delay: 1
+          full_scan_time: 1
+          index: 0
+          iterate_with: iterate_with_func_name_in__G
+          iteration_delay: 1
+          iterator_type: ALL
+          on_full_scan_complete: on_full_scan_complete_func_name_in__G
+          on_full_scan_error: on_full_scan_error_func_name_in__G
+          on_full_scan_start: on_full_scan_start_func_name_in__G
+          on_full_scan_success: on_full_scan_success_func_name_in__G
+          process_expired_tuple: process_expired_tuple_func_name_in__G
+          process_while: process_while_func_name_in__G
+          start_key:
+            - 1
+          tuples_per_iteration: 100
+          vinyl_assumed_space_len: 100
+          vinyl_assumed_space_len_factor: 1
   ```
 
   [expirationd.start()](https://tarantool.github.io/expirationd/#start) has

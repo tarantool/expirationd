@@ -1,4 +1,5 @@
 local expirationd = require('expirationd')
+local fiber = require('fiber')
 local t = require('luatest')
 local helpers = require('test.helper')
 
@@ -551,6 +552,9 @@ end
 function g.test_apply_config_skip_is_master_only(cg)
     local task_name = "apply_config_test"
 
+    t.assert_equals(box.info.ro, false)
+    box.cfg{read_only=true}
+
     cg.role.apply({
         [task_name] = {
             space = g.space.id,
@@ -559,7 +563,10 @@ function g.test_apply_config_skip_is_master_only(cg)
         },
     }, {is_master = false})
 
+    fiber.yield()
     helpers.retrying({}, function()
         t.assert_equals(#expirationd.tasks(), 0)
     end)
+
+    box.cfg{read_only=false}
 end

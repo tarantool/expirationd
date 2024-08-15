@@ -1,37 +1,32 @@
 local expirationd = require("expirationd")
+local config = require('config')
 local fiber = require("fiber")
 local log = require("log")
 
 local role_name = "roles.expirationd"
 local started = {}
 
+function _G.expirationd_enable_issue(task_name, message, ...)
+    config._aboard:set(
+        {
+            type = 'warn',
+            message = ('EXPIRATIOND, task name "%s": ' .. message):format(task_name, ...),
+        },
+        {
+            key = task_name,
+        }
+    )
+end
 
-local function load_function(func_name)
-    if func_name == nil or type(func_name) ~= 'string' then
-        return nil
-    end
-
-    local func = rawget(_G, func_name)
-    if func ~= nil then
-        if type(func) ~= 'function' then
-            return nil
-        end
-
-        return func
-    elseif box.schema.func.exists(func_name) then
-        return function(...)
-            return box.func[func_name]:call({...})
-        end
-    else
-        return nil
-    end
+function _G.expirationd_disable_issue(task_name)
+    config._aboard:drop(task_name)
 end
 
 local types_map = {
     b = {type = "boolean", err = "a boolean"},
     n = {type = "number", err = "a number"},
     s = {type = "string", err = "a string"},
-    f = {type = "string", transform = load_function, err = "a function name in _G or in box.func"},
+    f = {type = "string", err = "a string"},
     t = {type = "table", err = "a table"},
     any = {err = "any type"},
 }

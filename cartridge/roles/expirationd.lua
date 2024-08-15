@@ -2,41 +2,27 @@ local expirationd = require("expirationd")
 local role_name = "expirationd"
 local started = require("cartridge.vars").new(role_name)
 
-local function dumb_fn() end
+local issue_map = {}
 
-local function load_function(func_name)
-    if func_name == nil or type(func_name) ~= 'string' then
-        return nil
+function _G.expirationd_enable_issue(task_name, message, ...)
+    issue_map[task_name] = {
+        level = 'warning',
+        topic = 'expirationd',
+        message = ('EXPIRATIOND, task name "%s": ' .. message):format(task_name, ...),
+    }
+end
+
+function _G.expirationd_disable_issue(task_name)
+    issue_map[task_name] = nil
+end
+
+local function get_issues()
+    local res = {}
+    for _, issue in pairs(issue_map) do
+        table.insert(res, issue)
     end
 
-    local func = rawget(_G, func_name)
-    if func == nil then
-        if type(box.cfg) == 'function' then
-            -- After restart `validate_config` sometimes is run before box.cfg
-            -- call and it leads to error like `Please call box.cfg first` and
-            -- at this moment we are not able to check real availability of
-            -- functions in box.func. If we return nil, we fail configration
-            -- but it is not an error actually, because we cannot do any
-            -- checks.  Thus we decided to return dumb_fn to avoid
-            -- misconfiguration at this stage and in hope that `apply_config`
-            -- will do real check.
-            -- P.S. Of course it is a bad solution, but...
-            return dumb_fn
-        end
-        if not box.schema.func.exists(func_name) then
-            return nil
-        end
-
-        return function(...)
-            return box.func[func_name]:call({...})
-        end
-    end
-
-    if type(func) ~= 'function' then
-        return nil
-    end
-
-    return func
+    return res
 end
 
 local function get_param(param_name, value, types)
@@ -44,7 +30,7 @@ local function get_param(param_name, value, types)
         b = {type = "boolean", err = "a boolean"},
         n = {type = "number", err = "a number"},
         s = {type = "string", err = "a string"},
-        f = {type = "string", transform = load_function, err = "a function name in _G or in box.func"},
+        f = {type = "string", err = "a string"},
         t = {type = "table", err = "a table"},
         any = {err = "any type"},
     }
@@ -273,4 +259,5 @@ return setmetatable({
     validate_config = validate_config,
     apply_config = apply_config,
     stop = stop,
+    get_issues = get_issues,
 }, { __index = expirationd })

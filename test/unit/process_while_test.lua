@@ -37,9 +37,9 @@ function g.test_passing(cg)
     task:kill()
 
     -- errors
-    t.assert_error_msg_contains("bad argument options.process_while to nil (?function expected, got string)",
+    t.assert_error_msg_contains("bad argument options.process_while to nil (?string|function expected, got number)",
             expirationd.start, "clean_all", cg.space.id, helpers.is_expired_true,
-            { process_while = "" })
+            { process_while = 123 })
 end
 
 local function process_while(task)

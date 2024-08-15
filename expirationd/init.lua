@@ -22,6 +22,27 @@ local function get_fiber_id(fiber)
     return fid
 end
 
+-- This method adds an issue to the cluster instance that is displayed in the admin panel
+-- and metrics. The method calls a global function that must be declared in the role module.
+-- If the function is not declared, then instead of an issue, a warning is written to the log.
+local function add_issue(task_name, message, ...)
+    if rawget(_G, 'expirationd_enable_issue') ~= nil then
+        _G.expirationd_enable_issue(task_name, message, ...)
+    else
+        local message_tpl = 'Expirationd warning: task "%s", ' .. message
+        log.warn(message_tpl:format(task_name, ...))
+    end
+end
+
+-- This method removes a previously added issue from the cluster instance, which is displayed in
+-- the admin panel and metrics. The method calls a global function that must be declared in the
+-- role module. If the function is not declared, then nothing is called.
+local function remove_issue(task_name)
+    if rawget(_G, 'expirationd_disable_issue') ~= nil then
+        _G.expirationd_disable_issue(task_name)
+    end
+end
+
 local stash_names = {
     cfg = '__expirationd_cfg',
     metrics_stats = '__expirationd_metrics_stats',
@@ -181,6 +202,67 @@ local function check_space_and_index_exist(task)
         local prefix = "Index with " ..
                        (type(task.index) == "string" and "name " or "id ")
         return false, prefix .. task.index .. " does not exist"
+    end
+
+    return true
+end
+
+local function load_function(func_name)
+    if func_name == nil or type(func_name) ~= 'string' then
+        return nil
+    end
+
+    local func = rawget(_G, func_name)
+    if func ~= nil then
+        if type(func) ~= 'function' then
+            return nil
+        end
+
+        return func
+    elseif box.schema.func.exists(func_name) then
+        return function(...)
+            return box.func[func_name]:call({...})
+        end
+    else
+        return nil
+    end
+end
+
+local function load_functions(task)
+    local func_list = {
+        'is_tuple_expired',
+        'iterate_with',
+        'on_full_scan_complete',
+        'on_full_scan_error',
+        'on_full_scan_start',
+        'on_full_scan_success',
+        'process_expired_tuple',
+        'process_while',
+    }
+
+    local result = {}
+    for _, func_name in ipairs(func_list) do
+        if task[func_name] and type(task[func_name]) == 'string' then
+            result[func_name] = load_function(task[func_name])
+            if result[func_name] == nil then
+                add_issue(
+                    task.name,
+                    'Function "%s" (for option "%s") -- not loaded',
+                    task[func_name],
+                    func_name
+                )
+                return false
+            end
+        end
+    end
+
+    for func_name, func_ptr in pairs(result) do
+        task[func_name] = func_ptr
+    end
+
+    if task.is_tuple_expired == nil then
+        add_issue(task.name, 'Function "is_tuple_expired" must be declare')
+        return false
     end
 
     return true
@@ -374,16 +456,26 @@ local function worker_loop(task)
             fiber.self():cancel()
         end
         -- Full scan iteration is complete, yield
+        remove_issue(task.name)
         fiber.sleep(task.full_scan_delay)
     end
 end
 
 local function guardian_loop(task)
+    add_issue(task.name, 'Task is not running')
+
     -- detach the guardian from the creator and attach it to sched
     fiber.name(string.format("guardian of %q", task.name), { truncate = true })
 
     while true do
         if check_space_and_index_exist(task) then
+            break
+        end
+        fiber.sleep(constants.check_interval)
+    end
+
+    while true do
+        if load_functions(task) then
             break
         end
         fiber.sleep(constants.check_interval)
@@ -447,6 +539,8 @@ local Task_methods = {
     --
     -- @function task.stop
     stop = function (self)
+        remove_issue(self.name)
+
         if (get_fiber_id(self.guardian_fiber) ~= 0) then
             self.guardian_fiber:cancel()
             while self.guardian_fiber:status() ~= "dead" do
@@ -991,7 +1085,7 @@ end
 --
 -- @function expirationd.start
 local function expirationd_run_task(name, space, is_tuple_expired, options)
-    checks('string', 'number|string', 'function', {
+    checks('string', 'number|string', 'string|function', {
         args = '?',
         atomic_iteration = '?boolean',
         force = '?boolean',
@@ -999,15 +1093,15 @@ local function expirationd_run_task(name, space, is_tuple_expired, options)
         full_scan_delay = '?number|cdata',
         full_scan_time = '?number|cdata',
         index = '?number|string',
-        iterate_with = '?function',
+        iterate_with = '?string|function',
         iteration_delay = '?number|cdata',
         iterator_type = '?number|string',
-        on_full_scan_complete = '?function',
-        on_full_scan_error = '?function',
-        on_full_scan_start = '?function',
-        on_full_scan_success = '?function',
-        process_expired_tuple = '?function',
-        process_while = '?function',
+        on_full_scan_complete = '?string|function',
+        on_full_scan_error = '?string|function',
+        on_full_scan_start = '?string|function',
+        on_full_scan_success = '?string|function',
+        process_expired_tuple = '?string|function',
+        process_while = '?string|function',
         start_key = '?',
         tuples_per_iteration = '?number|cdata',
         vinyl_assumed_space_len_factor = '?number|cdata',

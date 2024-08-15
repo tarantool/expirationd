@@ -1,0 +1,25 @@
+credentials:
+  users:
+    guest:
+      roles: [super]
+
+groups:
+  group-001:
+    replicasets:
+      replicaset-001:
+        roles: [roles.expirationd]
+        roles_cfg:
+          roles.expirationd:
+            task_name1:
+              space: customers
+              is_expired: test_is_expired
+              options:
+                iterate_with: test_iterate_with
+                process_expired_tuple: test_process_expired_tuple
+        instances:
+          master:
+            iproto:
+              listen:
+                - uri: '127.0.0.1:3313'
+            database:
+              mode: rw

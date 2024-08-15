@@ -13,7 +13,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 
-- Fix `is_master_only` option. Now it runs on master correctly.
+- Fix `is_master_only` option. Now it runs on master correctly. 
+- Fixed restrictions on the order of role enable.
 
 ## 1.6.0 - 2024-03-25
 

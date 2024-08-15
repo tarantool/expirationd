@@ -218,18 +218,10 @@ local required_test_cases = {
     },
     invalid_expired = {
         ok = false,
-        err = "expirationd: is_expired must be a function name in _G",
+        err = "expirationd: is_expired must be a string",
         cfg = { ["task_name"] = {
             space = 1,
             is_expired = 0,
-        }}
-    },
-    invalid_expired_func = {
-        ok = false,
-        err = "expirationd: is_expired must be a function name in _G",
-        cfg = { ["task_name"] = {
-            space = 1,
-            is_expired = "any invelid func name",
         }}
     },
 }
@@ -378,13 +370,17 @@ local options_cases = {
         options = {iterate_with = always_true_func_name},
     },
     iterate_with_string = {
+        ok = true,
+        options = {iterate_with = "always_true_func_name"},
+    },
+    iterate_with_number = {
         ok = false,
-        err = "expirationd: options.iterate_with must be a function name in _G",
-        options = {iterate_with = "any string"},
+        err = "expirationd: options.iterate_with must be a string",
+        options = {iterate_with = 123},
     },
     iterate_with_table = {
         ok = false,
-        err = "expirationd: options.iterate_with must be a function name in _G",
+        err = "expirationd: options.iterate_with must be a string",
         options = {iterate_with = {}},
     },
     iteration_delay_number = {
@@ -413,55 +409,55 @@ local options_cases = {
         ok = true,
         options = {on_full_scan_complete = always_true_func_name},
     },
-    on_full_scan_complete_string = {
+    on_full_scan_complete_number = {
         ok = false,
-        err = "expirationd: options.on_full_scan_complete must be a function name in _G",
-        options = {on_full_scan_complete = "any string func"},
+        err = "expirationd: options.on_full_scan_complete must be a string",
+        options = {on_full_scan_complete = 123},
     },
     on_full_scan_error_func = {
         ok = true,
         options = {on_full_scan_error = always_true_func_name},
     },
-    on_full_scan_error_string = {
+    on_full_scan_error_number = {
         ok = false,
-        err = "expirationd: options.on_full_scan_error must be a function name in _G",
-        options = {on_full_scan_error = "any string func"},
+        err = "expirationd: options.on_full_scan_error must be a string",
+        options = {on_full_scan_error = 123},
     },
     on_full_scan_start_func = {
         ok = true,
         options = {on_full_scan_start = always_true_func_name},
     },
-    on_full_scan_start_string = {
+    on_full_scan_start_number = {
         ok = false,
-        err = "expirationd: options.on_full_scan_start must be a function name in _G",
-        options = {on_full_scan_start = "any string func"},
+        err = "expirationd: options.on_full_scan_start must be a string",
+        options = {on_full_scan_start = 123},
     },
     on_full_scan_success_func = {
         ok = true,
         options = {on_full_scan_success = always_true_func_name},
     },
-    on_full_scan_success_string = {
+    on_full_scan_success_number = {
         ok = false,
-        err = "expirationd: options.on_full_scan_success must be a function name in _G",
-        options = {on_full_scan_success = "any string func"},
+        err = "expirationd: options.on_full_scan_success must be a string",
+        options = {on_full_scan_success = 123},
     },
     process_expired_tuple_func = {
         ok = true,
         options = {process_expired_tuple = always_true_func_name},
     },
-    process_expired_tuple_string = {
+    process_expired_tuple_number = {
         ok = false,
-        err = "expirationd: options.process_expired_tuple must be a function name in _G",
-        options = {process_expired_tuple = "any string func"},
+        err = "expirationd: options.process_expired_tuple must be a string",
+        options = {process_expired_tuple = 123},
     },
     process_while_func = {
         ok = true,
         options = {process_while = always_true_func_name},
     },
-    process_while_string = {
+    process_while_number = {
         ok = false,
-        err = "expirationd: options.process_while must be a function name in _G",
-        options = {process_while = "any string func"},
+        err = "expirationd: options.process_while must be a string",
+        options = {process_while = 123},
     },
     start_key_func = {
         ok = true,
@@ -473,8 +469,8 @@ local options_cases = {
     },
     start_key_invalid = {
         ok = false,
-        err = "expirationd: options.start_key must be a function name in _G or in box.func or a table",
-        options = {start_key = "any string"},
+        err = "expirationd: options.start_key must be a string",
+        options = {start_key = 123},
     },
     tuples_per_iteration_number = {
         ok = true,

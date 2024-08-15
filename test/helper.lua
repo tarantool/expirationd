@@ -322,6 +322,21 @@ function helpers.create_persistent_function(name, body)
     })
 end
 
+function helpers.create_persistent_function_on_server(server, name, body)
+    if _TARANTOOL >= "2" then
+        server:exec(function(name_on_server, body_on_server)
+            box.schema.func.create(name_on_server, {
+                language = 'LUA',
+                if_not_exists = true,
+                body = body_on_server
+            })
+        end, {name, body})
+    else
+        local expr = ([[rawset(_G, '%s', %s)]]):format(name, body)
+        server:eval(expr)
+    end
+end
+
 local root = fio.dirname(fio.dirname(fio.abspath(package.search('test.helper'))))
 
 helpers.lua_path = root .. '/?.lua;' ..

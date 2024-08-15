@@ -90,8 +90,10 @@ function g.test_expirationd_on_master_processing(cg)
     ]])
     t.assert_equals(ret, tuples_cnt)
 
-    ret = cg.cluster:server('s1-master').net_box:eval(expirationd_eval)
-    t.assert_equals(ret, 0)
+    helpers.retrying({}, function()
+        ret = cg.cluster:server('s1-master').net_box:eval(expirationd_eval)
+        t.assert_equals(ret, 0)
+    end)
 end
 
 function g.test_expirationd_on_replica_no_processing(cg)

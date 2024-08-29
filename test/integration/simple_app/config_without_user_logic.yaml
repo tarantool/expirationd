@@ -1,0 +1,25 @@
+credentials:
+  users:
+    guest:
+      roles: [super]
+
+groups:
+  group-001:
+    replicasets:
+      replicaset-001:
+        roles: [roles.expirationd]
+        roles_cfg:
+          roles.expirationd:
+            task_name1:
+              space: test
+              options:
+                args:
+                  lifetime_in_seconds: 3
+                  time_create_field: dt
+        instances:
+          master:
+            iproto:
+              listen:
+                - uri: '127.0.0.1:3313'
+            database:
+              mode: rw

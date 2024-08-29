@@ -65,7 +65,7 @@ local required_test_cases = {
     },
     cfg_invalid_param = {
         ok = false,
-        err = "roles.expirationd: unsupported config option any",
+        err = "unexpected argument cfg.any to get_cfg",
         cfg = { ["cfg"] = {
             any = 1,
         }},
@@ -78,7 +78,7 @@ local required_test_cases = {
     },
     cfg_metrics_invalid_value = {
         ok = false,
-        err = "roles.expirationd: metrics must be a boolean",
+        err = "bad argument cfg.metrics to get_cfg (?boolean expected, got number)",
         cfg = { ["cfg"] = {
             metrics = 12,
         }},
@@ -106,7 +106,8 @@ local required_test_cases = {
         }},
     },
     all_ok_task_cfg = {
-        ok = true,
+        ok = false,
+        err = "unexpected argument cfg.space to get_cfg",
         cfg = { ["cfg"] = {
             space = "space name",
             is_expired = always_true_func_name,
@@ -114,26 +115,26 @@ local required_test_cases = {
     },
     not_table = {
         ok = false,
-        err = "roles.expirationd: task params must be a table",
+        err = "task configuration must be a table",
         cfg = { ["task_name"] = 123 },
     },
     no_space = {
         ok = false,
-        err = "roles.expirationd: space is required",
+        err = "bad argument task_conf.space to check_task_description (string|number expected, got nil)",
         cfg = { ["task_name"] = {
             is_expired = always_true_func_name,
         }},
     },
     no_expired = {
         ok = false,
-        err = "roles.expirationd: is_expired is required",
+        err = "is_expired is required or options.args is required",
         cfg = { ["task_name"] = {
             space = 1,
         }},
     },
     invalid_name = {
         ok = false,
-        err = "roles.expirationd: task name must be a string",
+        err = "task name must be a string",
         cfg = { [3] = {
             space = "space name",
             is_expired = always_true_func_name,
@@ -141,10 +142,73 @@ local required_test_cases = {
     },
     invalid_space = {
         ok = false,
-        err = "roles.expirationd: space must be a number or a string",
+        err = "bad argument task_conf.space to check_task_description (string|number expected, got table)",
         cfg = { ["task_name"] = {
             space = {},
             is_expired = always_true_func_name,
+        }},
+    },
+
+    lifetime_in_seconds_string = {
+        ok = false,
+        err = "bad argument args.lifetime_in_seconds to check_default_is_expired_args (number expected, got string)",
+        cfg = { ["task_name"] = {
+            space = 1,
+            options = {
+                args = {
+                    time_create_field = "dt",
+                    lifetime_in_seconds = "too",
+                }
+            },
+        }},
+    },
+    time_create_field_number = {
+        ok = false,
+        err = "bad argument args.time_create_field to check_default_is_expired_args (string expected, got number)",
+        cfg = { ["task_name"] = {
+            space = 1,
+            options = {
+                args = {
+                    time_create_field = 123,
+                    lifetime_in_seconds = 123,
+                },
+            },
+        }},
+    },
+    declare_only_lifetime_in_seconds = {
+        ok = false,
+        err = "bad argument args.time_create_field to check_default_is_expired_args (string expected, got nil)",
+        cfg = { ["task_name"] = {
+            space = 1,
+            options = {
+                args = {
+                    lifetime_in_seconds = 123,
+                }
+            },
+        }},
+    },
+    declare_only_time_create_field = {
+        ok = false,
+        err = "bad argument args.lifetime_in_seconds to check_default_is_expired_args (number expected, got nil)",
+        cfg = { ["task_name"] = {
+            space = 1,
+            options = {
+                args = {
+                    time_create_field = 'dt',
+                },
+            },
+        }},
+    },
+    declare_all_opt_without_is_expired = {
+        ok = true,
+        cfg = { ["task_name"] = {
+            space = 1,
+            options = {
+                args = {
+                    lifetime_in_seconds = 123,
+                    time_create_field = 'dt',
+                },
+            },
         }},
     },
 }
@@ -176,7 +240,7 @@ local additional_opts_test_cases = {
    },
    is_master_not_boolean = {
         ok = false,
-        err = "roles.expirationd: is_master_only must be a boolean",
+        err = "bad argument task_conf.is_master_only to check_task_description (?boolean expected, got table)",
         cfg = {is_master_only = {}},
    },
 }
@@ -206,12 +270,12 @@ local options_cases = {
     },
     number = {
         ok = false,
-        err = "roles.expirationd: an option must be a string",
+        err = "unexpected argument opts[1] to check_task_options",
         options = {[1] = "any"},
     },
     unsupported = {
         ok = false,
-        err = "roles.expirationd: unsupported option 'unsupported_option'",
+        err = "unexpected argument opts.unsupported_option to check_task_options",
         options = {unsupported_option = "any"},
     },
     args_table = {
@@ -236,7 +300,7 @@ local options_cases = {
     },
     atomic_iteration_invalid = {
         ok = false,
-        err = "roles.expirationd: options.atomic_iteration must be a boolean",
+        err = "bad argument opts.atomic_iteration to check_task_options (?boolean expected, got string)",
         options = {atomic_iteration = "string"},
     },
     force_boolean = {
@@ -245,7 +309,7 @@ local options_cases = {
     },
     force_invalid = {
         ok = false,
-        err = "roles.expirationd: options.force must be a boolean",
+        err = "bad argument opts.force to check_task_options (?boolean expected, got string)",
         options = {force = "string"},
     },
     force_allow_functional_index_boolean = {
@@ -254,7 +318,7 @@ local options_cases = {
     },
     force_allow_functional_index_invalid = {
         ok = false,
-        err = "roles.expirationd: options.force_allow_functional_index must be a boolean",
+        err = "bad argument opts.force_allow_functional_index to check_task_options (?boolean expected, got number)",
         options = {force_allow_functional_index = 13},
     },
     full_scan_delay_number = {
@@ -263,7 +327,7 @@ local options_cases = {
     },
     full_scan_delay_invalid = {
         ok = false,
-        err = "roles.expirationd: options.full_scan_delay must be a number",
+        err = "bad argument opts.full_scan_delay to check_task_options (?number expected, got string)",
         options = {full_scan_delay = "string"},
     },
     full_scan_time_number = {
@@ -272,7 +336,7 @@ local options_cases = {
     },
     full_scan_time_invalid = {
         ok = false,
-        err = "roles.expirationd: options.full_scan_time must be a number",
+        err = "bad argument opts.full_scan_time to check_task_options (?number expected, got boolean)",
         options = {full_scan_time = true},
     },
     index_number = {
@@ -285,7 +349,7 @@ local options_cases = {
     },
     index_invalid = {
         ok = false,
-        err = "roles.expirationd: options.index must be a number or a string",
+        err = "bad argument opts.index to check_task_options (?number|string expected, got boolean)",
         options = {index = true},
     },
     iterate_with_func = {
@@ -298,7 +362,7 @@ local options_cases = {
     },
     iteration_delay_invalid = {
         ok = false,
-        err = "roles.expirationd: options.iteration_delay must be a number",
+        err = "bad argument opts.iteration_delay to check_task_options (?number expected, got table)",
         options = {iteration_delay = {"table"}},
     },
     iterator_type_number = {
@@ -311,7 +375,7 @@ local options_cases = {
     },
     iterator_type_invalid = {
         ok = false,
-        err = "roles.expirationd: options.iterator_type must be a number or a string",
+        err = "bad argument opts.iterator_type to check_task_options (?number|string expected, got boolean)",
         options = {iterator_type = false},
     },
     on_full_scan_complete_func = {
@@ -352,7 +416,7 @@ local options_cases = {
     },
     tuples_per_iteration_invalid = {
         ok = false,
-        err = "roles.expirationd: options.tuples_per_iteration must be a number",
+        err = "bad argument opts.tuples_per_iteration to check_task_options (?number expected, got table)",
         options = {tuples_per_iteration = {"table"}},
     },
     vinyl_assumed_space_len_factor_number = {
@@ -361,7 +425,7 @@ local options_cases = {
     },
     vinyl_assumed_space_len_factor_invalid = {
         ok = false,
-        err = "roles.expirationd: options.vinyl_assumed_space_len_factor must be a number",
+        err = "bad argument opts.vinyl_assumed_space_len_factor to check_task_options (?number expected, got boolean)",
         options = {vinyl_assumed_space_len_factor = false},
     },
     vinyl_assumed_space_len_number = {
@@ -370,7 +434,7 @@ local options_cases = {
     },
     vinyl_assumed_space_len_invalid = {
         ok = false,
-        err = "roles.expirationd: options.vinyl_assumed_space_len must be a number",
+        err = "bad argument opts.vinyl_assumed_space_len to check_task_options (?number expected, got string)",
         options = {vinyl_assumed_space_len = "string"},
     },
 }
@@ -384,6 +448,7 @@ for k, case in pairs(options_cases) do
             t.assert_equals(res, true)
         else
             t.assert_equals(status, false)
+            t.assert_str_contains(res, "roles.expirationd:")
             t.assert_str_contains(res, case.err)
         end
     end

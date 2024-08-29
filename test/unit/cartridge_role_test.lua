@@ -134,7 +134,7 @@ local required_test_cases = {
     },
     cfg_invalid_param = {
         ok = false,
-        err = "expirationd: unsupported config option any",
+        err = "unexpected argument cfg.any to get_cfg",
         cfg = { ["cfg"] = {
             any = 1,
         }}
@@ -147,7 +147,7 @@ local required_test_cases = {
     },
     cfg_metrics_invalid_value = {
         ok = false,
-        err = "expirationd: metrics must be a boolean",
+        err = "bad argument cfg.metrics to get_cfg (?boolean expected, got number)",
         cfg = { ["cfg"] = {
             metrics = 12,
         }}
@@ -174,8 +174,9 @@ local required_test_cases = {
             options = {}
         }}
     },
-    all_ok_task_cfg = {
-        ok = true,
+    task_cfg = {
+        ok = false,
+        err = "unexpected argument cfg.space to get_cfg",
         cfg = { ["cfg"] = {
             space = "space name",
             is_expired = always_true_func_name,
@@ -183,26 +184,26 @@ local required_test_cases = {
     },
     not_table = {
         ok = false,
-        err = "expirationd: task params must be a table",
+        err = "task configuration must be a table",
         cfg = { ["task_name"] = 123 },
     },
     no_space = {
         ok = false,
-        err = "expirationd: space is required",
+        err = "bad argument task_conf.space to check_task_description (string|number expected, got nil)",
         cfg = { ["task_name"] = {
             is_expired = always_true_func_name,
         }}
     },
     no_expired = {
         ok = false,
-        err = "expirationd: is_expired is required",
+        err = "is_expired is required or options.args is required",
         cfg = { ["task_name"] = {
             space = 1,
         }}
     },
     invalid_name = {
         ok = false,
-        err = "expirationd: task name must be a string",
+        err = "task name must be a string",
         cfg = { [3] = {
             space = "space name",
             is_expired = always_true_func_name,
@@ -210,7 +211,7 @@ local required_test_cases = {
     },
     invalid_space = {
         ok = false,
-        err = "expirationd: space must be a number or a string",
+        err = "bad argument task_conf.space to check_task_description (string|number expected, got table)",
         cfg = { ["task_name"] = {
             space = {},
             is_expired = always_true_func_name,
@@ -218,11 +219,73 @@ local required_test_cases = {
     },
     invalid_expired = {
         ok = false,
-        err = "expirationd: is_expired must be a string",
+        err = "bad argument task_conf.is_expired to check_task_description (?string expected, got number)",
         cfg = { ["task_name"] = {
             space = 1,
             is_expired = 0,
         }}
+    },
+    lifetime_in_seconds_string = {
+        ok = false,
+        err = "bad argument args.lifetime_in_seconds to check_default_is_expired_args (number expected, got string)",
+        cfg = { ["task_name"] = {
+            space = 1,
+            options = {
+                args = {
+                    time_create_field = "dt",
+                    lifetime_in_seconds = "too",
+                },
+            },
+        }},
+    },
+    time_create_field_number = {
+        ok = false,
+        err = "bad argument args.time_create_field to check_default_is_expired_args (string expected, got number)",
+        cfg = { ["task_name"] = {
+            space = 1,
+            options = {
+                args = {
+                    time_create_field = 123,
+                    lifetime_in_seconds = 123,
+                },
+            },
+        }},
+    },
+    declare_only_lifetime_in_seconds = {
+        ok = false,
+        err = "bad argument args.time_create_field to check_default_is_expired_args (string expected, got nil)",
+        cfg = { ["task_name"] = {
+            space = 1,
+            options = {
+                args = {
+                    lifetime_in_seconds = 123,
+                },
+            },
+        }},
+    },
+    declare_only_time_create_field = {
+        ok = false,
+        err = "bad argument args.lifetime_in_seconds to check_default_is_expired_args (number expected, got nil)",
+        cfg = { ["task_name"] = {
+            space = 1,
+            options = {
+                args = {
+                    time_create_field = 'dt',
+                },
+            },
+        }},
+    },
+    declare_all_opt_without_is_expired = {
+        ok = true,
+        cfg = { ["task_name"] = {
+            space = 1,
+            options = {
+                args = {
+                    lifetime_in_seconds = 123,
+                    time_create_field = 'dt',
+                },
+            },
+        }},
     },
 }
 
@@ -253,7 +316,7 @@ local additional_opts_test_cases = {
    },
    is_master_not_boolean = {
         ok = false,
-        err = "expirationd: is_master_only must be a boolean",
+        err = "bad argument task_conf.is_master_only to check_task_description (?boolean expected, got table)",
         cfg = {is_master_only = {}}
    },
 }
@@ -283,12 +346,12 @@ local options_cases = {
     },
     number = {
         ok = false,
-        err = "expirationd: an option must be a string",
+        err = "unexpected argument opts[1] to check_task_options",
         options = {[1] = "any"},
     },
     unsupported = {
         ok = false,
-        err = "expirationd: unsupported option 'unsupported_option'",
+        err = "unexpected argument opts.unsupported_option to check_task_options",
         options = {unsupported_option = "any"},
     },
     args_table = {
@@ -313,7 +376,7 @@ local options_cases = {
     },
     atomic_iteration_invalid = {
         ok = false,
-        err = "expirationd: options.atomic_iteration must be a boolean",
+        err = "bad argument opts.atomic_iteration to check_task_options (?boolean expected, got string)",
         options = {atomic_iteration = "string"},
     },
     force_boolean = {
@@ -322,7 +385,7 @@ local options_cases = {
     },
     force_invalid = {
         ok = false,
-        err = "expirationd: options.force must be a boolean",
+        err = "bad argument opts.force to check_task_options (?boolean expected, got string)",
         options = {force = "string"},
     },
     force_allow_functional_index_boolean = {
@@ -331,7 +394,7 @@ local options_cases = {
     },
     force_allow_functional_index_invalid = {
         ok = false,
-        err = "expirationd: options.force_allow_functional_index must be a boolean",
+        err = "bad argument opts.force_allow_functional_index to check_task_options (?boolean expected, got number)",
         options = {force_allow_functional_index = 13},
     },
     full_scan_delay_number = {
@@ -340,7 +403,7 @@ local options_cases = {
     },
     full_scan_delay_invalid = {
         ok = false,
-        err = "expirationd: options.full_scan_delay must be a number",
+        err = "bad argument opts.full_scan_delay to check_task_options (?number expected, got string)",
         options = {full_scan_delay = "string"},
     },
     full_scan_time_number = {
@@ -349,7 +412,7 @@ local options_cases = {
     },
     full_scan_time_invalid = {
         ok = false,
-        err = "expirationd: options.full_scan_time must be a number",
+        err = "bad argument opts.full_scan_time to check_task_options (?number expected, got boolean)",
         options = {full_scan_time = true},
     },
     index_number = {
@@ -362,7 +425,7 @@ local options_cases = {
     },
     index_invalid = {
         ok = false,
-        err = "expirationd: options.index must be a number or a string",
+        err = "bad argument opts.index to check_task_options (?number|string expected, got boolean)",
         options = {index = true},
     },
     iterate_with_func = {
@@ -375,12 +438,12 @@ local options_cases = {
     },
     iterate_with_number = {
         ok = false,
-        err = "expirationd: options.iterate_with must be a string",
+        err = "bad argument opts.iterate_with to check_task_options (?string expected, got number)",
         options = {iterate_with = 123},
     },
     iterate_with_table = {
         ok = false,
-        err = "expirationd: options.iterate_with must be a string",
+        err = "bad argument opts.iterate_with to check_task_options (?string expected, got table)",
         options = {iterate_with = {}},
     },
     iteration_delay_number = {
@@ -389,7 +452,7 @@ local options_cases = {
     },
     iteration_delay_invalid = {
         ok = false,
-        err = "expirationd: options.iteration_delay must be a number",
+        err = "bad argument opts.iteration_delay to check_task_options (?number expected, got table)",
         options = {iteration_delay = {"table"}},
     },
     iterator_type_number = {
@@ -402,7 +465,7 @@ local options_cases = {
     },
     iterator_type_invalid = {
         ok = false,
-        err = "expirationd: options.iterator_type must be a number or a string",
+        err = "bad argument opts.iterator_type to check_task_options (?number|string expected, got boolean)",
         options = {iterator_type = false},
     },
     on_full_scan_complete_func = {
@@ -411,7 +474,7 @@ local options_cases = {
     },
     on_full_scan_complete_number = {
         ok = false,
-        err = "expirationd: options.on_full_scan_complete must be a string",
+        err = "bad argument opts.on_full_scan_complete to check_task_options (?string expected, got number)",
         options = {on_full_scan_complete = 123},
     },
     on_full_scan_error_func = {
@@ -420,7 +483,7 @@ local options_cases = {
     },
     on_full_scan_error_number = {
         ok = false,
-        err = "expirationd: options.on_full_scan_error must be a string",
+        err = "bad argument opts.on_full_scan_error to check_task_options (?string expected, got number)",
         options = {on_full_scan_error = 123},
     },
     on_full_scan_start_func = {
@@ -429,7 +492,7 @@ local options_cases = {
     },
     on_full_scan_start_number = {
         ok = false,
-        err = "expirationd: options.on_full_scan_start must be a string",
+        err = "bad argument opts.on_full_scan_start to check_task_options (?string expected, got number)",
         options = {on_full_scan_start = 123},
     },
     on_full_scan_success_func = {
@@ -438,7 +501,7 @@ local options_cases = {
     },
     on_full_scan_success_number = {
         ok = false,
-        err = "expirationd: options.on_full_scan_success must be a string",
+        err = "bad argument opts.on_full_scan_success to check_task_options (?string expected, got number)",
         options = {on_full_scan_success = 123},
     },
     process_expired_tuple_func = {
@@ -447,7 +510,7 @@ local options_cases = {
     },
     process_expired_tuple_number = {
         ok = false,
-        err = "expirationd: options.process_expired_tuple must be a string",
+        err = "bad argument opts.process_expired_tuple to check_task_options (?string expected, got number)",
         options = {process_expired_tuple = 123},
     },
     process_while_func = {
@@ -456,7 +519,7 @@ local options_cases = {
     },
     process_while_number = {
         ok = false,
-        err = "expirationd: options.process_while must be a string",
+        err = "bad argument opts.process_while to check_task_options (?string expected, got number)",
         options = {process_while = 123},
     },
     start_key_func = {
@@ -467,18 +530,13 @@ local options_cases = {
         ok = true,
         options = {start_key = {1, 2, 3}},
     },
-    start_key_invalid = {
-        ok = false,
-        err = "expirationd: options.start_key must be a string",
-        options = {start_key = 123},
-    },
     tuples_per_iteration_number = {
         ok = true,
         options = {tuples_per_iteration = 11},
     },
     tuples_per_iteration_invalid = {
         ok = false,
-        err = "expirationd: options.tuples_per_iteration must be a number",
+        err = "bad argument opts.tuples_per_iteration to check_task_options (?number expected, got table)",
         options = {tuples_per_iteration = {"table"}},
     },
     vinyl_assumed_space_len_factor_number = {
@@ -487,7 +545,7 @@ local options_cases = {
     },
     vinyl_assumed_space_len_factor_invalid = {
         ok = false,
-        err = "expirationd: options.vinyl_assumed_space_len_factor must be a number",
+        err = "bad argument opts.vinyl_assumed_space_len_factor to check_task_options (?number expected, got boolean)",
         options = {vinyl_assumed_space_len_factor = false},
     },
     vinyl_assumed_space_len_number = {
@@ -496,7 +554,7 @@ local options_cases = {
     },
     vinyl_assumed_space_len_invalid = {
         ok = false,
-        err = "expirationd: options.vinyl_assumed_space_len must be a number",
+        err = "bad argument opts.vinyl_assumed_space_len to check_task_options (?number expected, got string)",
         options = {vinyl_assumed_space_len = "string"},
     },
 }
@@ -706,6 +764,14 @@ function g.test_apply_config_start_task_with_all_options(cg)
     t.assert_equals(ok, false)
     t.assert_equals(#cg.role.tasks(), 0)
 end
+
+g.before_test('test_apply_config_skip_is_master_only', function()
+    box.cfg({read_only = true})
+end)
+
+g.after_test('test_apply_config_skip_is_master_only', function()
+    box.cfg({read_only = false})
+end)
 
 function g.test_apply_config_skip_is_master_only(cg)
     local task_name = "apply_config_test"

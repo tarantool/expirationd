@@ -45,7 +45,22 @@ local function check_issues(server, expected_issue)
 
     t.helpers.retrying(retry_opt, function()
         local issue = server:exec(function()
-            return require('config')._aboard:get('task_name1')
+            local config = require('config')
+            local expirationd = require('expirationd')
+
+            if config._aboard == nil then
+                local task = expirationd.task('task_name1')
+                if task == nil or task.alert == nil then
+                    return nil
+                end
+
+                return {
+                    type = 'warn',
+                    message = task.alert,
+                }
+            else
+                return config._aboard:get('task_name1')
+            end
         end)
         if type(issue) == 'table' then
             issue.timestamp = nil
@@ -63,7 +78,7 @@ function g.test_nonstandard_startup_order(cg)
 
     check_issues(storage_master, {
             type = 'warn',
-            message = 'EXPIRATIOND, task name "task_name1": Task is not running',
+            message = 'Expirationd warning, task "task_name1": Space with name customers does not exist',
     })
 
     storage_master:exec(function()
@@ -85,7 +100,7 @@ function g.test_nonstandard_startup_order(cg)
 
     check_issues(storage_master, {
             type = 'warn',
-            message = 'EXPIRATIOND, task name "task_name1": Function "test_is_expired" '
+            message = 'Expirationd warning, task "task_name1": Function "test_is_expired" '
                 .. '(for option "is_tuple_expired") -- not loaded',
     })
 
@@ -99,7 +114,7 @@ function g.test_nonstandard_startup_order(cg)
 
     check_issues(storage_master, {
             type = 'warn',
-            message = 'EXPIRATIOND, task name "task_name1": Function "test_iterate_with" '
+            message = 'Expirationd warning, task "task_name1": Function "test_iterate_with" '
                 .. '(for option "iterate_with") -- not loaded',
     })
 
@@ -113,7 +128,7 @@ function g.test_nonstandard_startup_order(cg)
 
     check_issues(storage_master, {
             type = 'warn',
-            message = 'EXPIRATIOND, task name "task_name1": Function "test_process_expired_tuple" '
+            message = 'Expirationd warning, task "task_name1": Function "test_process_expired_tuple" '
                 .. '(for option "process_expired_tuple") -- not loaded',
     })
 

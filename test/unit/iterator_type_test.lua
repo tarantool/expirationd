@@ -13,7 +13,7 @@ local g = t.group('iterator_type', {
 g.before_each({index_type = 'TREE'}, function(cg)
     t.skip_if(cg.params.engine == 'vinyl' and not helpers.vinyl_is_supported(),
         'Blocked by https://github.com/tarantool/tarantool/issues/6448 on ' ..
-		'this Tarantool version')
+        'this Tarantool version')
     g.space = helpers.create_space_with_tree_index(cg.params.engine)
 end)
 
@@ -32,29 +32,54 @@ end)
 function g.test_passing_errors_tree_index(cg)
     t.skip_if(cg.params.index_type ~= 'TREE', 'Unsupported index type')
 
-    t.assert_error_msg_content_equals(
-            "Unknown iterator type 'ERROR'",
-            expirationd.start, "clean_all", cg.space.id, helpers.is_expired_true, {iterator_type = "ERROR"})
+    local task = expirationd.start("clean_all", cg.space.id, helpers.is_expired_true, {iterator_type = "ERROR"})
+    t.helpers.retrying({}, function()
+        t.assert_equals(task.alert, "Expirationd warning, task \"clean_all\": Unknown iterator type 'ERROR'")
+    end)
 end
 
 function g.test_passing_errors_hash_index(cg)
     t.skip_if(cg.params.index_type ~= 'HASH', 'Unsupported index type')
 
-    t.assert_error_msg_contains(
-            "Index 'primary' (HASH) of space 'hash' (memtx) does not support requested iterator type",
-            expirationd.start, "clean_all", cg.space.id, helpers.is_expired_true, {start_key = 1, iterator_type = 1})
+    local task = expirationd.start(
+            "clean_all",
+            cg.space.id,
+            helpers.is_expired_true,
+            {
+                start_key = 1,
+                iterator_type = 1
+            }
+    )
 
-    t.assert_error_msg_content_equals(
-            "Index 'primary' (HASH) of space 'hash' (memtx) does not support requested iterator type",
-            expirationd.start, "clean_all", cg.space.id, helpers.is_expired_true, {start_key = 1, iterator_type = "GE"})
+    t.helpers.retrying({}, function()
+        t.assert_equals(task.alert, "Expirationd warning, task \"clean_all\": Index 'primary' (HASH) of space " ..
+                "'hash' (memtx) does not support requested iterator type")
+    end)
+
+    local task = expirationd.start(
+            "clean_all",
+            cg.space.id,
+            helpers.is_expired_true,
+            {
+                start_key = 1,
+                iterator_type = "GE"
+            }
+    )
+
+    t.helpers.retrying({}, function()
+        t.assert_equals(task.alert, "Expirationd warning, task \"clean_all\": Index 'primary' (HASH) of space " ..
+                "'hash' (memtx) does not support requested iterator type")
+    end)
 end
 
 function g.test_passing_errors_bitset_index(cg)
     t.skip_if(cg.params.index_type ~= 'BITSET', 'Unsupported index type')
 
-    t.assert_error_msg_content_equals(
-            "Not supported index type, expected TREE or HASH",
-            expirationd.start, "clean_all", cg.space.id, helpers.is_expired_true, {index = "index_for_first_name"})
+    local task = expirationd.start("clean_all", cg.space.id, helpers.is_expired_true, {index = "index_for_first_name"})
+    t.helpers.retrying({}, function()
+        t.assert_equals(task.alert, "Expirationd warning, task \"clean_all\": Not supported index type, " ..
+                "expected TREE or HASH")
+    end)
 end
 
 function g.test_passing_all(cg)
@@ -274,11 +299,11 @@ function g.test_hash_index_eq(cg)
     t.skip_if(cg.params.index_type ~= 'HASH', 'Unsupported index type')
 
     -- iterator_type EQ with partial key (nil or {} is a partial key)
-    t.assert_error_msg_content_equals(
-            "HASH index  does not support selects via a partial key " ..
-            "(expected 1 parts, got 0). Please Consider changing index type to TREE.",
-            expirationd.start, "clean_all", cg.space.id, helpers.is_expired_true,
-            {iterator_type = "EQ"})
+    local task = expirationd.start("clean_all", cg.space.id, helpers.is_expired_true, {iterator_type = "EQ"})
+    t.helpers.retrying({}, function()
+        t.assert_equals(task.alert, "Expirationd warning, task \"clean_all\": HASH index  does not support " ..
+                "selects via a partial key (expected 1 parts, got 0). Please Consider changing index type to TREE.")
+    end)
 
     -- with start key
     -- HASH doesn't support non unique indexes
@@ -287,7 +312,7 @@ function g.test_hash_index_eq(cg)
     cg.space:insert({2, "2"})
     cg.space:insert({3, "1"})
 
-    local task = expirationd.start("clean_all", cg.space.id, helpers.is_expired_debug,
+    task = expirationd.start("clean_all", cg.space.id, helpers.is_expired_debug,
             {iterator_type = "EQ", start_key = 2})
     -- wait for tuples expired
     helpers.retrying({}, function()

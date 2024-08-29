@@ -49,22 +49,64 @@ function g.test_passing(cg)
     task:kill()
 
     -- errors
-    t.assert_error_msg_content_equals(
-            "Supplied key type of part 0 does not match index part type: expected number",
-            expirationd.start, "clean_all", cg.space.id, helpers.is_expired_true,
-            { start_key = "" })
-    t.assert_error_msg_content_equals(
-            "Supplied key type of part 0 does not match index part type: expected number",
-            expirationd.start, "clean_all", cg.space.id, helpers.is_expired_true,
-            { index = "multipart_index", start_key = "" })
-    t.assert_error_msg_content_equals(
-            "Supplied key type of part 0 does not match index part type: expected number",
-            expirationd.start, "clean_all", cg.space.id, helpers.is_expired_true,
-            { index = "multipart_index", start_key = {"", ""} })
-    t.assert_error_msg_content_equals(
-            "Supplied key type of part 1 does not match index part type: expected number",
-            expirationd.start, "clean_all", cg.space.id, helpers.is_expired_true,
-            { index = "multipart_index", start_key = {1, ""} })
+    task = expirationd.start(
+            "clean_all",
+            cg.space.id,
+            helpers.is_expired_true,
+            {
+                start_key = ""
+            }
+    )
+
+    t.helpers.retrying({}, function()
+        t.assert_equals(task.alert, "Expirationd warning, task \"clean_all\": Supplied key type of part " ..
+                "0 does not match index part type: expected number")
+    end)
+
+    task = expirationd.start(
+            "clean_all",
+            cg.space.id,
+            helpers.is_expired_true,
+            {
+                index = "multipart_index",
+                start_key = ""
+            }
+    )
+
+    t.helpers.retrying({}, function()
+        t.assert_equals(task.alert, "Expirationd warning, task \"clean_all\": Supplied key type of part " ..
+                "0 does not match index part type: expected number")
+    end)
+
+    task = expirationd.start(
+            "clean_all",
+            cg.space.id,
+            helpers.is_expired_true,
+            {
+                index = "multipart_index",
+                start_key = {"", ""}
+            }
+    )
+
+    t.helpers.retrying({}, function()
+        t.assert_equals(task.alert, "Expirationd warning, task \"clean_all\": Supplied key type of part " ..
+                "0 does not match index part type: expected number")
+    end)
+
+    task = expirationd.start(
+            "clean_all",
+            cg.space.id,
+            helpers.is_expired_true,
+            {
+                index = "multipart_index",
+                start_key = {1, ""}
+            }
+    )
+
+    t.helpers.retrying({}, function()
+        t.assert_equals(task.alert, "Expirationd warning, task \"clean_all\": Supplied key type of part " ..
+                "1 does not match index part type: expected number")
+    end)
 end
 
 function g.test_tree_index(cg)

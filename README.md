@@ -31,11 +31,11 @@ Table below may help you to choose a proper module for your requirements:
 | expirationd   | Medium (sec)  | Yes          | Yes                 | synchronous (fiber with condition) |
 | moonwalker    | NA            | No           | Yes                 | asynchronous (using crontab etc)   |
 
-### Prerequisites
+## Prerequisites
 
 * Tarantool 1.10+ (`tarantool` package, see [documentation](https://www.tarantool.io/en/download/)).
 
-### Installation
+## Installation
 
 You can:
 
@@ -51,7 +51,7 @@ You can:
   luarocks install --local --server=https://rocks.tarantool.org expirationd
   ```
 
-### Documentation
+## Documentation
 
 See API documentation in https://tarantool.github.io/expirationd/
 
@@ -63,10 +63,43 @@ regular spaces. One can force running task on replica with option `force` in
 `start()` module function. The option force let a user control where to start
 task processing and where don't.
 
-### Examples
+## Default deletion function
+
+Although the expirationd module is quite flexible in its configuration, it includes a 
+default deletion function. This function is activated if a custom expiration determination 
+function, `is_expired`, is not specified. The default function deletes all rows that:
+* Are older than a specified threshold, defined in `options.args.lifetime_in_seconds`, type - number
+* Belong to the specified space
+* By checking a specified field, defined in `options.args.time_create_field`, type - string
+
+The specified field can be of several types. The function for determining the current time 
+depends on the column type. See the table:
+
+| time_create_field type | now            |
+|------------------------|----------------|
+| number                 | clock.time()   |
+| integer                | clock.time()   |
+| unsigned               | clock.time()   |
+| datetime               | datetime.now() |
+
+## Examples
 
 Simple version:
 
+```lua
+expirationd = require("expirationd")
+
+expirationd.start("clean_all", box.space.myspace.id, nil, {
+    args = {
+        lifetime_in_seconds = 86400,
+        time_create_field = 'dt',
+    },
+    tuples_per_iteration = 50,
+    full_scan_time = 3600
+})
+```
+
+Simple version with user logic:
 ```lua
 box.cfg{}
 space = box.space.old

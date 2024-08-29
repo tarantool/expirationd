@@ -6,6 +6,10 @@ local helpers = require("luatest.helpers")
 helpers.project_root = fio.dirname(debug.sourcedir())
 
 function helpers.create_space(space_name, engine)
+    t.helpers.retrying({}, function()
+        t.assert_not(box.info().ro)
+    end)
+
     local space_format = {
         {
             name = "id",

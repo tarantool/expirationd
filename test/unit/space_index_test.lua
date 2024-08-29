@@ -1,6 +1,5 @@
 local expirationd = require("expirationd")
 local t = require("luatest")
-local luatest_capture = require("luatest.capture")
 local helpers = require("test.helper")
 local g = t.group("expirationd_space_index")
 
@@ -67,40 +66,43 @@ end
 local non_existing_start_cases = {
     non_existing_index_name = {
         index = "non_existing_name",
-        msg = "expiration: postpone a task clean_all, reason: Index with name non_existing_name does not exist",
+        msg = "Expirationd warning, task \"clean_all\": Index with name non_existing_name does not exist",
     },
     non_existing_index_id = {
         index = 67,
-        msg = "expiration: postpone a task clean_all, reason: Index with id 67 does not exist",
+        msg = "Expirationd warning, task \"clean_all\": Index with id 67 does not exist",
     },
     non_existing_space_name = {
         space = "non_existing_name",
         index = 0,
-        msg = "expiration: postpone a task clean_all, reason: Space with name non_existing_name does not exist",
+        msg = "Expirationd warning, task \"clean_all\": Space with name non_existing_name does not exist",
     },
     non_existing_space_id = {
         space = 337,
         index = 0,
-        msg = "expiration: postpone a task clean_all, reason: Space with id 337 does not exist",
+        msg = "Expirationd warning, task \"clean_all\": Space with id 337 does not exist",
     },
 }
 
 for name, case in pairs(non_existing_start_cases) do
     g["test_start_" .. name] = function(cg)
-        local task
-        local capture = luatest_capture:new()
-        capture:wrap(true, function()
-            helpers.iteration_result = {}
-            local space = case.space or cg.space.id
-            task = expirationd.start("clean_all", space, helpers.is_expired_debug,
+        helpers.iteration_result = {}
+        local space = case.space or cg.space.id
+        local task = expirationd.start("clean_all", space, helpers.is_expired_debug,
                                      {index = case.index})
-        end)
-
-        t.assert_str_contains(capture:flush().stderr, case.msg)
 
         t.assert_not_equals(task, nil)
         t.assert_not_equals(expirationd.task("clean_all"), nil)
         t.assert_equals(#expirationd.tasks(), 1)
+
+        local retry_opt = {
+            timeout = 2,
+            delay = 0.25,
+        }
+        t.helpers.retrying(retry_opt, function()
+            t.assert_str_contains(task.alert, case.msg)
+        end)
+
         t.assert_equals(task:statistics().restarts, 0)
 
         task:kill()
@@ -179,12 +181,14 @@ local rename_cases = {
     index_rename = {
         fun = function(space, _)
             space:rename("XXX")
-        end
+        end,
+        alert_msg = "Expirationd warning, task \"clean_all\": Space with name tree does not exist",
     },
     space_rename = {
         fun = function(_, index)
             index:rename("XXX")
-        end
+        end,
+        alert_msg = "Expirationd warning, task \"clean_all\": Index with name index_for_first_name does not exist",
     },
 }
 
@@ -202,21 +206,15 @@ for name, case in pairs(rename_cases) do
         end)
         helpers.iteration_result = {}
 
-        local capture = luatest_capture:new()
-        capture:wrap(true, function()
-            local space = box.space[space_name]
-            case.fun(space, space.index[index_name])
-            space:insert({1, "1"})
+        local space = box.space[space_name]
+        case.fun(space, space.index[index_name])
+        space:insert({1, "1"})
 
-            local stderr = ""
-            helpers.retrying({}, function()
-                stderr = stderr .. capture:flush().stderr
-                t.assert_str_contains(stderr, "expiration: stop task")
-            end)
+        helpers.retrying({}, function()
+            t.assert_equals(task.alert, case.alert_msg)
         end)
 
-        t.assert_equals(task.worker_fiber:status(), "dead")
-        t.assert_equals(task.guardian_fiber:status(), "dead")
+        t.assert_not_equals(task.guardian_fiber:status(), "dead")
         t.assert_equals(helpers.iteration_result, {})
         t.assert_equals(#expirationd.tasks(), 1)
         t.assert_not_equals(expirationd.task(task_name), nil)
@@ -257,11 +255,13 @@ local drop_cases = {
         fun = function(_, index)
             index:drop()
         end,
+        alert_msg = "Expirationd warning, task \"clean_all\": Index with id 1 does not exist",
     },
     space_drop = {
         fun = function(space, _)
             space:drop()
         end,
+        alert_msg = "Expirationd warning, task \"clean_all\": Space with id %d does not exist",
     }
 }
 
@@ -277,20 +277,14 @@ for name, case in pairs(drop_cases) do
             t.assert_equals(helpers.iteration_result, {{1, "1"}})
         end)
         helpers.iteration_result = {}
+        case.fun(cg.space, cg.space.index[index_id])
 
-        local capture = luatest_capture:new()
-        capture:wrap(true, function()
-            case.fun(cg.space, cg.space.index[index_id])
-
-            local stderr = ""
-            helpers.retrying({}, function()
-                stderr = stderr .. capture:flush().stderr
-                t.assert_str_contains(stderr, "expiration: stop task")
-            end)
+        helpers.retrying({}, function()
+            local res_alert_msg = case.alert_msg:format(cg.space.id)
+            t.assert_equals(task.alert, res_alert_msg)
         end)
 
-        t.assert_equals(task.worker_fiber:status(), "dead")
-        t.assert_equals(task.guardian_fiber:status(), "dead")
+        t.assert_not_equals(task.guardian_fiber:status(), "dead")
         t.assert_equals(helpers.iteration_result, {})
         t.assert_equals(#expirationd.tasks(), 1)
         t.assert_not_equals(expirationd.task(task_name), nil)
@@ -312,21 +306,16 @@ function g.test_stop_after_drop_stop_and_recreate(cg)
         t.assert_equals(helpers.iteration_result, {{2, "2"}})
     end)
 
-    local capture = luatest_capture:new()
-    capture:wrap(true, function()
-        cg.case_space:drop()
-        local stderr = ""
-        helpers.retrying({}, function()
-            stderr = stderr .. capture:flush().stderr
-            t.assert_str_contains(stderr, "expiration: stop task")
-        end)
+    cg.case_space:drop()
+
+    helpers.retrying({}, function()
+        t.assert_equals(task.alert, "Expirationd warning, task \"clean_all\": Space with name tmp does not exist")
     end)
 
     helpers.iteration_result = {}
     create_case_space(cg, space_name)
 
-    t.assert_equals(task.worker_fiber:status(), "dead")
-    t.assert_equals(task.guardian_fiber:status(), "dead")
+    t.assert_not_equals(task.guardian_fiber:status(), "dead")
     t.assert_equals(helpers.iteration_result, {})
     t.assert_equals(#expirationd.tasks(), 1)
     t.assert_not_equals(expirationd.task(task_name), nil)

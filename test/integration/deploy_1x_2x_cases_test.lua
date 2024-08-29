@@ -82,7 +82,7 @@ function g.test_nonstandard_startup_order(cg)
     check_issues(storage_master, {{
             level = 'warning',
             topic = 'expirationd',
-            message = 'EXPIRATIOND, task name "test_task": Task is not running',
+            message = 'Expirationd warning, task "test_task": Space with name customers does not exist',
     }})
     check_issues(storage_slave, {})
 
@@ -106,7 +106,7 @@ function g.test_nonstandard_startup_order(cg)
     check_issues(storage_master, {{
         level = 'warning',
         topic = 'expirationd',
-        message = 'EXPIRATIOND, task name "test_task": Function "test_is_expired" '
+        message = 'Expirationd warning, task "test_task": Function "test_is_expired" '
             .. '(for option "is_tuple_expired") -- not loaded',
     }})
     check_issues(storage_slave, {})
@@ -124,7 +124,7 @@ function g.test_nonstandard_startup_order(cg)
     check_issues(storage_master, {{
             level = 'warning',
             topic = 'expirationd',
-            message = 'EXPIRATIOND, task name "test_task": Function "test_iterate_with" '
+            message = 'Expirationd warning, task "test_task": Function "test_iterate_with" '
                 .. '(for option "iterate_with") -- not loaded',
     }})
     check_issues(storage_slave, {})
@@ -142,7 +142,7 @@ function g.test_nonstandard_startup_order(cg)
     check_issues(storage_master, {{
             level = 'warning',
             topic = 'expirationd',
-            message = 'EXPIRATIOND, task name "test_task": Function "test_process_expired_tuple" '
+            message = 'Expirationd warning, task "test_task": Function "test_process_expired_tuple" '
                 .. '(for option "process_expired_tuple") -- not loaded',
     }})
     check_issues(storage_slave, {})

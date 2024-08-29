@@ -17,9 +17,13 @@ dependencies = {
 build = {
     type = "builtin",
     modules = {
+        ["cartridge.roles.expirationd"] = "cartridge/roles/expirationd.lua",
+
+        ["expirationd.roles.config"] = "expirationd/roles/config.lua",
+        ["expirationd.strategy.lifetime_all"] = "expirationd/strategy/lifetime_all.lua",
         ["expirationd"] = "expirationd/init.lua",
         ["expirationd.version"] = "expirationd/version.lua",
-        ["cartridge.roles.expirationd"] = "cartridge/roles/expirationd.lua",
+
         ["roles.expirationd"] = "roles/expirationd.lua"
     }
 }

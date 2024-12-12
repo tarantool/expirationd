@@ -248,7 +248,7 @@ local function load_task(task_conf, task_name)
 
     fiber.name(role_name .. ":" .. task_name)
 
-    local skip = task_conf.is_master_only and not box.info.ro
+    local skip = task_conf.is_master_only and box.info.ro
     if skip then
         return
     end

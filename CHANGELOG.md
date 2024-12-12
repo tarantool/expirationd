@@ -13,6 +13,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 
+- Fix launch on ro instance with is_master_only = true
+
 ## 1.6.0 - 2024-03-25
 
 The release introduces a role for Tarantool 3.0.

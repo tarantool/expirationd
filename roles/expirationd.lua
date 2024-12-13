@@ -6,6 +6,21 @@ local role_name = "roles.expirationd"
 local started = {}
 
 
+local function pars_tarantool_version()
+    local version = rawget(_G, "_TARANTOOL"):split('-', 1)[1]
+    local major_minor_patch = version:split('.', 2)
+    local result = {
+        major = tonumber(major_minor_patch[1]),
+        minor = tonumber(major_minor_patch[2]),
+        patch = tonumber(major_minor_patch[3])
+    }
+    return result
+end
+
+
+local tarantool_version = pars_tarantool_version()
+
+
 local function load_function(func_name)
     if func_name == nil or type(func_name) ~= 'string' then
         return nil
@@ -281,6 +296,10 @@ local function load_task(task_conf, task_name)
 end
 
 local function apply_config(conf)
+    -- Check tarantool major version
+    if tarantool_version.major < 3 then
+        error('Tarantool version must be greater than or equal to 3.3.0')
+    end
     -- Finishes tasks from an old configuration
     for i = #started, 1, -1 do
         local task_name = started[i]
@@ -317,8 +336,63 @@ local function stop()
     end
 end
 
-return {
-    validate = validate_config,
-    apply = apply_config,
-    stop = stop,
-}
+local function on_event_3_3_0(config, key, value)
+    local role_conf = config:get('roles_cfg')[role_name]
+    if key == 'box.status' then
+        if value.is_ro then
+            for _, task_name in pairs(expirationd.tasks()) do
+                if role_conf[task_name].is_master_only then
+                    local task = expirationd.task(task_name)
+                    task:stop()
+                end
+            end
+        elseif #expirationd.tasks() == 0 then
+            apply_config(role_conf)
+        end
+    elseif key == 'config.apply' then
+        apply_config(role_conf)
+    end
+end
+
+local function on_event(config, key, value)
+    if key == 'box.status' then
+        if value.is_ro then
+            for _, task_name in pairs(expirationd.tasks()) do
+                if config[task_name].is_master_only then
+                    local task = expirationd.task(task_name)
+                    task:stop()
+                end
+            end
+        elseif #expirationd.tasks() == 0 then
+            apply_config(config)
+        end
+    elseif key == 'config.apply' then
+        apply_config(config)
+    end
+end
+
+
+
+if tarantool_version.minor <= 2 then
+    return {
+        validate = validate_config,
+        apply = apply_config,
+        stop = stop
+    }
+elseif tarantool_version.minor == 3 and tarantool_version.patch == 0 then
+    return {
+        name = role_name,
+        validate = validate_config,
+        apply = apply_config,
+        stop = stop,
+        on_event = on_event_3_3_0
+    }
+else
+    return {
+        validate = validate_config,
+        apply = apply_config,
+        stop = stop,
+        on_event = on_event
+    }
+end
+

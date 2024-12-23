@@ -298,7 +298,7 @@ end
 local function apply_config(conf)
     -- Check tarantool major version
     if tarantool_version.major < 3 then
-        error('Tarantool version must be greater than or equal to 3.3.0')
+        error('Tarantool version must be greater than or equal to 3.0.0')
     end
     -- Finishes tasks from an old configuration
     for i = #started, 1, -1 do

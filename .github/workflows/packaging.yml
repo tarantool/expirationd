@@ -12,7 +12,7 @@ on:
 jobs:
   # Run not only on tags, otherwise dependent job will skip.
   version-check:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     steps:
       - name: Check module version
         # We need this step to run only on push with tag.
@@ -22,7 +22,7 @@ jobs:
           module-name: 'expirationd'
 
   package:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     needs: version-check
 
     strategy:
@@ -30,17 +30,7 @@ jobs:
       matrix:
         platform:
           - { os: 'debian', dist: 'stretch' }
-          - { os: 'debian', dist: 'buster' }
           - { os: 'debian', dist: 'bullseye' }
-          - { os: 'el', dist: '7' }
-          - { os: 'el', dist: '8' }
-          - { os: 'fedora', dist: '30' }
-          - { os: 'fedora', dist: '31' }
-          - { os: 'fedora', dist: '32' }
-          - { os: 'fedora', dist: '33' }
-          - { os: 'fedora', dist: '34' }
-          - { os: 'fedora', dist: '35' }
-          - { os: 'fedora', dist: '36' }
           - { os: 'ubuntu', dist: 'xenial' }
           - { os: 'ubuntu', dist: 'bionic' }
           - { os: 'ubuntu', dist: 'focal' }
@@ -53,7 +43,7 @@ jobs:
 
     steps:
       - name: Clone the module
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         # `actions/checkout` performs shallow clone of repo. To provide
         # proper version of the package to `packpack` we need to have
         # complete repository, otherwise it will be `0.0.1`.
@@ -61,7 +51,7 @@ jobs:
           fetch-depth: 0
 
       - name: Clone the packpack tool
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           repository: packpack/packpack
           path: packpack

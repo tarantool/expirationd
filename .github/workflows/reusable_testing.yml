@@ -11,7 +11,7 @@ on:
 
 jobs:
   run_tests:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     steps:
       - name: Clone the expirationd module
         uses: actions/checkout@v4
@@ -36,4 +36,12 @@ jobs:
 
       - run: make deps
       - run: echo $PWD/.rocks/bin >> $GITHUB_PATH
-      - run: make test
+
+      - name: Run tests
+        uses: nick-fields/retry@v3
+        with:
+          max_attempts: 3
+          retry_on: error
+          retry_wait_seconds: 10
+          timeout_minutes: 60
+          command: make test

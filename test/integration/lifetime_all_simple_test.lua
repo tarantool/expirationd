@@ -29,7 +29,7 @@ g.before_each(function(cg)
     -- Restarting instance is the easiest way to achieve it.
     -- It takes around 1s to start an instance, which considering small amount
     -- of integration tests is not a problem.
-    cg.router:start{wait_until_ready = true}
+    cg.router:start()
 end)
 
 g.after_each(function(cg)

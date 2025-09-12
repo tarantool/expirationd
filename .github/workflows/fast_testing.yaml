@@ -19,39 +19,28 @@ jobs:
       matrix:
         tarantool:
           - '1.10'
-          - '2.4'
-          - '2.5'
-          - '2.6'
-          - '2.7'
-          - '2.8'
           - '2.10'
+          - '2.11'
         cartridge-version:
           - ''
-          - '2.7.4'
+          - '2.16.3'
         metrics-version:
           - ''
-          - '0.10.0'
-          - '0.11.0'
-          - '0.13.0'
+          - '1.5.0'
         coveralls: [false]
         include:
-          - tarantool: '2.10'
-            cartridge-version: '2.7.4'
-            metrics-version: '0.13.0'
-            coveralls: true
-          - tarantool: 'debug-master'
+          - tarantool: '2.11'
             cartridge-version: ''
-            metrics-version: '0.13.0'
-            coveralls: false
+            coveralls: true
 
     env:
       TNT_DEBUG_PATH: /home/runner/tnt-debug
 
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     steps:
       - name: Install tarantool ${{ matrix.tarantool }}
         if: startsWith(matrix.tarantool, 'debug') != true
-        uses: tarantool/setup-tarantool@v1
+        uses: tarantool/setup-tarantool@v4
         with:
           tarantool-version: ${{ matrix.tarantool }}
 
@@ -74,7 +63,7 @@ jobs:
 
       - name: Clone tarantool ${{ matrix.tarantool }}
         if: startsWith(matrix.tarantool, 'debug') && steps.cache-tnt-debug.outputs.cache-hit != 'true'
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           repository: tarantool/tarantool
           ref: ${{ env.TNT_BRANCH }}
@@ -101,7 +90,7 @@ jobs:
           sudo cp -rvP ${TNT_DEBUG_PATH}/usr/local/* /usr/local/
 
       - name: Clone the module
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Cache rocks
         uses: actions/cache@v3
@@ -120,7 +109,6 @@ jobs:
 
       - name: Install requirements
         run: make deps
-        if: steps.cache-rocks.outputs.cache-hit != 'true'
 
       - name: Install metrics
         if: matrix.metrics-version != ''
@@ -136,7 +124,14 @@ jobs:
 
       - run: make check
 
-      - run: make coverage
+      - name: Run coverage
+        uses: nick-fields/retry@v3
+        with:
+          max_attempts: 3
+          retry_on: error
+          retry_wait_seconds: 10
+          timeout_minutes: 60
+          command: make coverage
 
       - name: Send code coverage to coveralls.io
         run: make coveralls

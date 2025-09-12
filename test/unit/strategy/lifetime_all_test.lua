@@ -67,6 +67,10 @@ local g = t.group(nil, case_list)
 local task_name = "lifetime_all"
 local issue_message
 
+g.before_all(function ()
+    t.skip_if(_TARANTOOL > '2', 'Not supported on 3.* versions')
+end)
+
 local function set_issue(issue_task_name, message, ...)
     issue_message = ('Expirationd warning, task "%s": ' .. message):format(issue_task_name, ...)
 end

@@ -1,8 +1,3 @@
-globals = {
-    "box",
-    "_TARANTOOL",
-}
-
 ignore = {
     -- Unused argument <self>.
     "212/self",
@@ -16,12 +11,9 @@ ignore = {
     "432",
 }
 
-include_files = {
-    '.luacheckrc',
-    '*.rockspec',
-    '**/*.lua',
-}
-
-exclude_files = {
-    '.rocks',
-}
+redefined = false
+globals = {'box', 'utf8', 'checkers', '_TARANTOOL'}
+include_files = {'**/*.lua', '*.luacheckrc', '*.rockspec'}
+exclude_files = {'**/*.rocks/', 'tmp/', 'sdk'}
+max_line_length = 120
+max_comment_line_length = 150

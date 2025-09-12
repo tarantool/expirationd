@@ -1,6 +1,7 @@
 local t = require('luatest')
 local fio = require('fio')
 
+--local helpers = require('test.helper')
 local helpers = require('test.helper')
 local Server = require('test.helper_server')
 
@@ -30,7 +31,7 @@ g.before_each(function(cg)
     -- Restarting instance is the easiest way to achieve it.
     -- It takes around 1s to start an instance, which considering small amount
     -- of integration tests is not a problem.
-    cg.router:start{wait_until_ready = true}
+    cg.router:start()
 
     cg.router:exec(function()
         box.watch('box.status', function(_, status)

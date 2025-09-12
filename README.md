@@ -164,7 +164,6 @@ expirationd.start(job_name, space.id, is_expired, {
 ## Testing
 
 ```
-$ tt install tarantool-ee 1.10.15-0-r648
 $ make deps-full
 $ make test
 ```

@@ -10,3 +10,5 @@ tags
 doc/apidoc/
 .idea
 *.swp
+.vscode
+sdk

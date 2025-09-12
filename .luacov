@@ -1,0 +1,9 @@
+local ci_node_index = os.getenv("CI_NODE_INDEX") or ""
+
+return {
+    statsfile = "luacov.stats" .. ci_node_index .. ".out",
+    exclude = {
+        ".rocks",
+        "test",
+    }
+}

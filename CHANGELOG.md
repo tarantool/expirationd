@@ -9,9 +9,17 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
-- Added the ability to run without a user Lua-code.
-
 ### Changed
+
+### Fixed
+
+## 1.7.0 - 2025-09-17
+
+This release improves flexibility of configuration and fixes role handling issues.
+
+### Added
+
+- Added the ability to run without a user Lua-code.
 
 ### Fixed
 

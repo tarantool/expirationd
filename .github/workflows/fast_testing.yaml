@@ -32,6 +32,9 @@ jobs:
           - tarantool: '2.11'
             cartridge-version: ''
             coveralls: true
+          - tarantool: '3.6'
+            cartridge-version: ''
+            coveralls: true
 
     env:
       TNT_DEBUG_PATH: /home/runner/tnt-debug

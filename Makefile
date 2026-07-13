@@ -57,7 +57,7 @@ coverage: $(LUACOV_STATS)
 
 coveralls: $(LUACOV_STATS)
 	echo "Send code coverage data to the coveralls.io service"
-	luacov-coveralls --include ^expirationd --verbose --repo-token ${GITHUB_TOKEN}
+	luacov-coveralls -o coveralls.json --include ^expirationd --verbose --repo-token ${GITHUB_TOKEN}
 
 deps:
 	tt rocks install luatest 1.0.1

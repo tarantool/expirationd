@@ -32,6 +32,7 @@ jobs:
           - tarantool: '2.11'
             cartridge-version: ''
             coveralls: true
+            s3-upload: true
 
     env:
       TNT_DEBUG_PATH: /home/runner/tnt-debug
@@ -138,3 +139,16 @@ jobs:
         if: ${{ matrix.coveralls }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload coverage report to S3
+        if: matrix.s3-upload && (github.ref_type == 'tag' || github.ref_name == 'master')
+        uses: tarantool/actions/s3-upload-file@master
+        with:
+          access-key-id: ${{ secrets.COVERAGE_S3_ACCESS_KEY_ID }}
+          secret-access-key: ${{ secrets.COVERAGE_S3_SECRET_ACCESS_KEY }}
+          bucket: packages
+          source: luacov.report.out
+          destination: >-
+            tarantooldb/dev/coverage-reports/modules/expirationd/${{
+            github.ref_type == 'tag' && github.ref_name || 'master'
+            }}/luacov.report.out
